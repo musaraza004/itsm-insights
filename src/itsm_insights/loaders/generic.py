@@ -41,6 +41,33 @@ def read_export(path: str | Path) -> pd.DataFrame:
     raise LoaderError(f"unsupported file type {suffix!r}; use .csv or .json")
 
 
+def check_mapping(path: str | Path, config: Config) -> list[dict]:
+    """Report, for each mapped field, whether its column exists in the export.
+
+    Reads only the header row for CSV files, so it is cheap to call before loading.
+    """
+    path = Path(path)
+    if path.suffix.lower() == ".json":
+        headers = {str(c).strip() for c in read_export(path).columns}
+    else:
+        if not path.is_file():
+            raise LoaderError(f"input file not found: {path}")
+        try:
+            headers = {str(c).strip() for c in pd.read_csv(path, nrows=0, dtype=str).columns}
+        except (ValueError, pd.errors.ParserError) as exc:
+            raise LoaderError(f"could not parse {path.name}: {exc}") from exc
+    return [
+        {
+            "field": field,
+            "column": column,
+            "required": field in REQUIRED_FIELDS,
+            "found": column in headers,
+        }
+        for field, column in config.columns.model_dump().items()
+        if column
+    ]
+
+
 def load_tickets(path: str | Path, config: Config) -> pd.DataFrame:
     """Read an export file and normalise it using ``config.columns``."""
     return normalise(read_export(path), config, source=Path(path).name)

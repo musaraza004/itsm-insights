@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from itsm_insights.config import Config
-from itsm_insights.metrics import mttr, sla
+from itsm_insights.metrics import backlog, load, mttr, sla
 
 
 @dataclass
@@ -23,6 +23,9 @@ class Analysis:
     by_priority: dict[str, dict]
     resolution: mttr.ResolutionStats
     resolution_by_priority: dict[str, mttr.ResolutionStats]
+    timezone: str = "UTC"
+    load: list[list[int]] = field(default_factory=list)
+    backlog: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
@@ -49,6 +52,13 @@ class Analysis:
                 "overall": self.resolution.as_dict(),
                 "by_priority": {p: s.as_dict() for p, s in self.resolution_by_priority.items()},
             },
+            "load": {
+                "timezone": self.timezone,
+                "weekdays": list(load.WEEKDAYS),
+                "by_weekday_hour": self.load,
+                "peak": load.peak(self.load) if self.load else None,
+            },
+            "backlog_ageing": self.backlog,
             "warnings": self.warnings,
         }
 
@@ -82,6 +92,9 @@ def analyze(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp | None = 
         by_priority=sla.breach_by_priority(evaluated, config),
         resolution=mttr.mttr(tickets),
         resolution_by_priority=mttr.mttr_by(tickets, "priority"),
+        timezone=config.timezone,
+        load=load.weekday_hour_counts(tickets, config.tz),
+        backlog=backlog.ageing(tickets, as_of),
         warnings=_data_warnings(tickets, evaluated, config, as_of),
     )
 

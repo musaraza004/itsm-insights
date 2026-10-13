@@ -71,8 +71,21 @@ Created → resolved for resolved tickets, wall-clock. Reported as:
 - **P90**, the long tail: 90% of tickets were resolved within this time. Computed with linear
   interpolation between ranks (numpy's default).
 
-Open tickets are not included; their time to resolve is not known yet. Backlog ageing (v0.3)
+Open tickets are not included; their time to resolve is not known yet. Backlog ageing
 covers them.
+
+## Peak-hour load
+
+Tickets are counted by the weekday and hour of their `created` time, converted to the configured
+`timezone` so the grid lines up with the team's working day (Monday 09:00 means 09:00 local, also
+across daylight-saving changes). The busiest cell is reported; ties go to the earliest in the week.
+
+## Backlog ageing
+
+Open tickets (no `resolved` time) are bucketed by age at the analysis time: under 1 day, 1 to 3
+days, 3 to 7 days, and over 7 days. Lower bounds are inclusive, so a ticket exactly 1 day old is in
+"1 to 3 days". Tickets created after the analysis time are skipped (and already reported as a
+warning).
 
 ## Validating with synthetic data
 

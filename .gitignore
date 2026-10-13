@@ -13,3 +13,4 @@ htmlcov/
 /demo*.csv
 /report*.html
 _site/
+.claude/
