@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "itsm-insights"
-version = "0.1.0"
+version = "0.2.0"
 description = "SLA, MTTR and service-desk analytics from a ticket CSV export, in one command."
 readme = "README.md"
 license = "MIT"

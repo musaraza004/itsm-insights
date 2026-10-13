@@ -133,10 +133,18 @@ def normalise(
         column = resolved.get(field, {}).get("column")
         out[field] = raw[headers[column.strip()]] if column else pd.NA
 
-    dayfirst = _decide_dayfirst(out, config, notes)
+    samples = pd.concat([out[f].dropna().astype(str).head(2000) for f in TIMESTAMP_FIELDS])
+    dayfirst = decide_dayfirst(samples, config, notes)
     for field in TIMESTAMP_FIELDS:
-        out[field] = _parse_timestamps(
-            out[field], field, resolved[field]["column"], config, source, dayfirst, notes
+        out[field] = parse_timestamps(
+            out[field],
+            field,
+            resolved[field]["column"],
+            config,
+            source,
+            dayfirst,
+            notes,
+            required=field in REQUIRED_FIELDS,
         )
 
     out["id"] = out["id"].astype("string").str.strip()
@@ -170,10 +178,11 @@ def normalise(
     return out
 
 
-def _decide_dayfirst(out: pd.DataFrame, config: Config, notes: list[str]) -> bool:
+def decide_dayfirst(samples: pd.Series, config: Config, notes: list[str]) -> bool:
+    """Day/month (True) or month/day (False) for numeric dates, noting the decision."""
     if config.date_order != "auto":
         return config.date_order == "dmy"
-    samples = pd.concat([out[f].dropna().astype(str).head(2000) for f in TIMESTAMP_FIELDS])
+    samples = samples.dropna().astype(str)
     has_numeric = samples.str.match(r"^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}").any()
     decided = detect.infer_dayfirst(samples)
     if decided is None:
@@ -201,7 +210,7 @@ def _note_priority_mapping(raw: pd.Series, mapped: pd.Series, notes: list[str]) 
     notes.append(f"Priorities mapped to SLA keys: {shown}.")
 
 
-def _parse_timestamps(
+def parse_timestamps(
     values: pd.Series,
     field: str,
     column: str | None,
@@ -209,17 +218,17 @@ def _parse_timestamps(
     source: str,
     dayfirst: bool,
     notes: list[str],
+    required: bool = False,
 ) -> pd.Series:
     """Parse to tz-aware UTC. Naive values are taken to be in ``config.timezone``.
 
-    The required ``created`` column must parse completely. Optional columns are
-    repaired instead: unparseable values become empty, and a column that is mostly
+    Required columns must parse completely. Optional columns are repaired
+    instead: unparseable values become empty, and a column that is mostly
     damaged is ignored, each with a note.
     """
     empty = pd.Series(pd.NaT, index=values.index, dtype="datetime64[ns, UTC]")
     if values.isna().all():
         return empty
-    required = field in REQUIRED_FIELDS
 
     text = values.astype("string").str.strip().replace("", pd.NA)
     if detect.is_time_only(text):

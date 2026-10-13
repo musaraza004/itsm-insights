@@ -23,7 +23,8 @@ def test_defaults_when_no_path():
 def test_example_config_loads():
     cfg = load_config(EXAMPLE)
     assert set(cfg.sla) == {"P1", "P2", "P3", "P4"}
-    assert cfg.sla["P3"].resolve == timedelta(days=3)
+    assert cfg.sla["P3"].resolve == timedelta(hours=30)
+    assert cfg.sla["P3"].calendar == "business"
     assert cfg.timezone == "Europe/London"
 
 
@@ -44,9 +45,66 @@ pause_statuses: ["Waiting for customer"]
     assert cfg.pause_statuses == ["Waiting for customer"]
 
 
-def test_business_calendar_rejected_with_roadmap_hint(tmp_path):
+def test_undefined_calendar_names_priority_and_choices(tmp_path):
     path = write(tmp_path, "sla:\n  P1: {response: 1h, resolve: 4h, calendar: business}\n")
-    with pytest.raises(ConfigError, match=r"sla\.P1\.calendar.*v0\.2"):
+    with pytest.raises(ConfigError, match=r"P1 uses calendar 'business'.*defined: 24x7"):
+        load_config(path)
+
+
+BUSINESS = """
+timezone: Europe/London
+calendars:
+  business:
+    days: [mon-fri]
+    hours: "08:00-18:00"
+    holidays: [2026-12-25, 2026-12-28]
+  weekend_support:
+    timezone: America/New_York
+    days: [sat, sun]
+    hours: "10:00-14:00"
+sla:
+  P1: {response: 15m, resolve: 4h, calendar: 24/7}
+  P2: {response: 1h, resolve: 8h, calendar: business}
+"""
+
+
+def test_business_calendar_built_from_config(tmp_path):
+    from datetime import date, time
+
+    from itsm_insights.calendars import TWENTY_FOUR_SEVEN, BusinessCalendar
+
+    cfg = load_config(write(tmp_path, BUSINESS))
+    cal = cfg.calendar("business")
+    assert isinstance(cal, BusinessCalendar)
+    assert cal.workdays == frozenset({0, 1, 2, 3, 4})
+    assert (cal.opens, cal.closes) == (time(8), time(18))
+    assert cal.timezone == "Europe/London"  # inherited from the top level
+    assert date(2026, 12, 28) in cal.holidays
+    assert cfg.calendar("weekend_support").workdays == frozenset({5, 6})
+    assert cfg.calendar("weekend_support").timezone == "America/New_York"
+    by_priority = cfg.calendars_by_priority()
+    assert by_priority["P1"] is TWENTY_FOUR_SEVEN
+    assert by_priority["P2"].name == "business"
+
+
+def test_24x7_cannot_be_redefined(tmp_path):
+    path = write(tmp_path, "calendars:\n  24x7: {days: [mon]}\n")
+    with pytest.raises(ConfigError, match="built in"):
+        load_config(path)
+
+
+@pytest.mark.parametrize(
+    ("snippet", "message"),
+    [
+        ('hours: "17:00-09:00"', "close after"),
+        ('hours: "9-5"', "HH:MM-HH:MM"),
+        ("days: [funday]", "unknown day"),
+        ("days: []", "at least one"),
+    ],
+)
+def test_bad_calendar_definitions(tmp_path, snippet, message):
+    path = write(tmp_path, f"calendars:\n  business: {{{snippet}}}\n")
+    with pytest.raises(ConfigError, match=message):
         load_config(path)
 
 

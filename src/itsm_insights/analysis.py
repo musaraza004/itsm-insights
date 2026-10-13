@@ -6,9 +6,10 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from itsm_insights import timeline
 from itsm_insights.config import Config
 from itsm_insights.loaders import detect
-from itsm_insights.metrics import backlog, load, mttr, sla
+from itsm_insights.metrics import backlog, handling, load, mttr, sla
 
 
 @dataclass
@@ -28,6 +29,9 @@ class Analysis:
     timezone: str = "UTC"
     load: list[list[int]] = field(default_factory=list)
     backlog: dict[str, int] = field(default_factory=dict)
+    calendars: dict[str, str] = field(default_factory=dict)
+    # None when no history was supplied: these rates cannot be computed without it.
+    handling: dict | None = None
     warnings: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
@@ -41,6 +45,7 @@ class Analysis:
             "sla": {
                 "response": self.response.as_dict(),
                 "resolve": self.resolve.as_dict(),
+                "calendars": self.calendars,
                 "by_priority": {
                     p: {
                         "label": self.priority_labels.get(p, ""),
@@ -62,6 +67,7 @@ class Analysis:
                 "peak": load.peak(self.load) if self.load else None,
             },
             "backlog_ageing": self.backlog,
+            "handling": self.handling,
             "warnings": self.warnings,
         }
 
@@ -72,7 +78,14 @@ def default_as_of(tickets: pd.DataFrame) -> pd.Timestamp:
     return pd.Timestamp(latest)
 
 
-def analyze(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp | None = None) -> Analysis:
+def analyze(
+    tickets: pd.DataFrame,
+    config: Config,
+    as_of: pd.Timestamp | None = None,
+    history: pd.DataFrame | None = None,
+) -> Analysis:
+    """Run every metric. ``history`` (from ``load_history``) enables clock pausing
+    and the FCR, reopen and escalation rates."""
     if tickets.empty:
         raise ValueError("the export contains no tickets")
     as_of = default_as_of(tickets) if as_of is None else pd.Timestamp(as_of)
@@ -80,7 +93,8 @@ def analyze(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp | None = 
         as_of = as_of.tz_localize(config.tz)
     as_of = as_of.tz_convert("UTC")
 
-    evaluated = sla.evaluate(tickets, config, as_of)
+    pauses = timeline.pause_intervals(history, config, as_of) if history is not None else None
+    evaluated = sla.evaluate(tickets, config, as_of, pauses=pauses)
     resolved_mask = tickets["resolved"].notna()
 
     return Analysis(
@@ -99,8 +113,21 @@ def analyze(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp | None = 
         timezone=config.timezone,
         load=load.weekday_hour_counts(tickets, config.tz),
         backlog=backlog.ageing(tickets, as_of),
-        warnings=_data_warnings(tickets, evaluated, config, as_of),
+        calendars={p: c.name for p, c in config.calendars_by_priority().items()},
+        handling=_handling(tickets, history, config) if history is not None else None,
+        warnings=_data_warnings(tickets, evaluated, config, as_of, history),
     )
+
+
+def _handling(tickets: pd.DataFrame, history: pd.DataFrame, config: Config) -> dict:
+    facts = timeline.ticket_facts(tickets, history, config)
+    return {
+        "fcr": handling.fcr(tickets, facts).as_dict(),
+        "reopen": handling.reopen_rate(tickets, facts).as_dict(),
+        "escalation": handling.escalation_rate(facts).as_dict(),
+        "escalation_paths": timeline.escalation_paths(history, config),
+        "tickets_with_history": int(facts["has_history"].sum()),
+    }
 
 
 def _priority_labels(tickets: pd.DataFrame) -> dict[str, str]:
@@ -115,7 +142,11 @@ def _priority_labels(tickets: pd.DataFrame) -> dict[str, str]:
 
 
 def _data_warnings(
-    tickets: pd.DataFrame, evaluated: pd.DataFrame, config: Config, as_of: pd.Timestamp
+    tickets: pd.DataFrame,
+    evaluated: pd.DataFrame,
+    config: Config,
+    as_of: pd.Timestamp,
+    history: pd.DataFrame | None = None,
 ) -> list[str]:
     warnings: list[str] = []
 
@@ -172,9 +203,30 @@ def _data_warnings(
     if future:
         warnings.append(f"{future} ticket(s) were created after the analysis time {as_of}.")
 
-    if config.pause_statuses:
+    if history is None:
+        if config.pause_statuses:
+            warnings.append(
+                "pause_statuses is set but no history file was given, so SLA clocks run "
+                "without pausing. Add a status history file (CLI: --history) to enable it."
+            )
+        return warnings
+
+    warnings.extend(history.attrs.get("notes", []))
+    with_history = set(history["id"].astype(str))
+    without = int((~tickets["id"].astype(str).isin(with_history)).sum())
+    if without:
         warnings.append(
-            "pause_statuses is set but clock pausing needs status history (planned for v0.2); "
-            "SLA clocks currently run continuously."
+            f"{without} ticket(s) have no history; they are left out of FCR, reopen and "
+            "escalation rates and their clocks are not paused."
+        )
+    unknown = timeline.unknown_ticket_count(tickets, history)
+    if unknown:
+        warnings.append(
+            f"{unknown} ticket id(s) in the history are not in the ticket export and were ignored."
+        )
+    if history["field"].eq("assignee_group").any() and not config.escalation_tiers:
+        warnings.append(
+            "Assignment history is present but escalation_tiers is not set, so no move "
+            "counts as an escalation. List your tiers in order, e.g. [L1, L2, Vendor]."
         )
     return warnings

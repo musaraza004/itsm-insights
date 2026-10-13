@@ -2,5 +2,6 @@
 
 from itsm_insights.loaders import detect
 from itsm_insights.loaders.generic import LoaderError, check_mapping, load_tickets
+from itsm_insights.loaders.history import load_history
 
-__all__ = ["LoaderError", "check_mapping", "detect", "load_tickets"]
+__all__ = ["LoaderError", "check_mapping", "detect", "load_history", "load_tickets"]

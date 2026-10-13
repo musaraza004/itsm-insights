@@ -1,4 +1,4 @@
-# Example config for itsm-insights. Matches the columns written by `generate-demo`.
+# Example config for itsm-insights. Matches the data written by `generate-demo`.
 
 timezone: Europe/London
 
@@ -12,11 +12,35 @@ columns:
   first_response: first_response_at
   resolved: resolved_at
 
+# Working-time calendars. 24x7 is built in.
+calendars:
+  business:
+    days: [mon-fri]
+    hours: "08:00-18:00"
+    holidays: [2026-01-01, 2026-04-03, 2026-04-06, 2026-05-04,
+               2026-05-25, 2026-08-31, 2026-12-25, 2026-12-28]
+
+# Targets are measured in the calendar's working time: on a 10-hour business day,
+# 30h is three working days. (1d always means 24 hours of working time.)
 sla:
-  P1: {response: 15m, resolve: 4h, calendar: 24x7}
-  P2: {response: 1h,  resolve: 8h, calendar: 24x7}
-  P3: {response: 4h,  resolve: 3d, calendar: 24x7}
-  P4: {response: 8h,  resolve: 5d, calendar: 24x7}
+  P1: {response: 15m, resolve: 4h,  calendar: 24x7}
+  P2: {response: 1h,  resolve: 8h,  calendar: business}
+  P3: {response: 4h,  resolve: 30h, calendar: business}
+  P4: {response: 8h,  resolve: 50h, calendar: business}
+
+# Statuses that stop the resolution clock (needs --history). Resolved statuses
+# also pause it, so time between a resolution and a reopen does not count.
+pause_statuses: [Waiting for customer, Pending vendor]
+
+# Support tiers in escalation order, for escalation and FCR rates (needs --history).
+escalation_tiers: [L1 Service Desk, L2 Infrastructure, Vendor]
+
+# History export columns (one row per status or assignment change).
+history_columns:
+  id: ticket_id
+  at: changed_at
+  field: field
+  value: value
 
 # Raw priority names without a P-code, mapped to SLA keys. "High (P3)" maps to P3 by itself.
 # priority_aliases: {Urgent: P1, Normal: P3}
@@ -27,6 +51,5 @@ date_order: auto
 # Statuses that mean "done", used to flag tickets whose status and resolved time disagree.
 resolved_statuses: [Resolved, Closed, Done, Solved, Completed]
 
-# Used from v0.2 (clock pausing) and v0.3 (repeat incidents).
-# pause_statuses: ["Waiting for customer", "Pending vendor"]
+# Used from v0.3 (repeat incidents).
 repeat_window_days: 14

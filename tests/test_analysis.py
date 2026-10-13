@@ -71,3 +71,53 @@ def test_header_only_export_rejected(tmp_path):
     path.write_text("ticket_id,created_at,priority\n", encoding="utf-8")
     with pytest.raises(ValueError, match="no tickets"):
         analyze(load_tickets(path, Config()), Config())
+
+
+def _history(rows):
+    df = pd.DataFrame(rows, columns=["id", "at", "field", "value"])
+    df["at"] = pd.to_datetime(df["at"], utc=True)
+    for col in ("id", "field", "value"):
+        df[col] = df[col].astype("string")
+    return df
+
+
+def test_history_drives_pauses_and_handling_rates():
+    tickets = make_tickets(
+        [
+            {"id": "T1", "created": "2026-01-05T09:00Z", "resolved": "2026-01-05T15:00Z"},
+            {"id": "T2", "created": "2026-01-05T09:00Z", "resolved": "2026-01-05T10:00Z"},
+            {"id": "T3", "created": "2026-01-05T09:00Z", "resolved": "2026-01-05T10:00Z"},
+        ]
+    )
+    history = _history(
+        [
+            ("T1", "2026-01-05T09:00", "assignee_group", "L1"),
+            ("T1", "2026-01-05T10:00", "status", "Waiting for customer"),
+            ("T1", "2026-01-05T13:00", "status", "In Progress"),
+            ("T1", "2026-01-05T15:00", "status", "Resolved"),
+            ("T2", "2026-01-05T09:00", "assignee_group", "L1"),
+            ("T2", "2026-01-05T09:30", "assignee_group", "L2"),
+            ("T2", "2026-01-05T10:00", "status", "Resolved"),
+            ("XX", "2026-01-05T10:00", "status", "Resolved"),
+        ]
+    )
+    cfg = Config(pause_statuses=["Waiting for customer"], escalation_tiers=["L1", "L2"])
+    result = analyze(tickets, cfg, as_of=pd.Timestamp("2026-01-06T00:00Z"), history=history)
+    # T1: 6h wall clock, 3h paused -> 3h, inside the 4h P1 target.
+    assert result.resolve.met == 3 and result.resolve.breached == 0
+    data = result.as_dict()
+    handling = data["handling"]
+    assert handling["fcr"] == {"count": 1, "of": 2, "rate": 0.5}  # T1 clean, T2 escalated
+    assert handling["escalation"]["count"] == 1
+    assert handling["escalation_paths"] == {"L1 -> L2": 1}
+    assert data["sla"]["calendars"] == {"P1": "24x7", "P2": "24x7", "P3": "24x7", "P4": "24x7"}
+    text = " ".join(result.warnings)
+    assert "1 ticket(s) have no history" in text  # T3
+    assert "1 ticket id(s) in the history are not in the ticket export" in text
+
+
+def test_without_history_handling_is_null_and_pause_warning_explains():
+    tickets = make_tickets([{"created": "2026-01-05T09:00Z", "resolved": "2026-01-05T10:00Z"}])
+    result = analyze(tickets, Config(pause_statuses=["Waiting for customer"]))
+    assert result.as_dict()["handling"] is None
+    assert any("no history file" in w for w in result.warnings)

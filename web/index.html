@@ -171,6 +171,19 @@
   .dropzone .browse { color: var(--primary); text-decoration: underline; text-underline-offset: 4px; }
   .dropzone p { margin: 0; color: var(--muted); font-size: 12px; line-height: 18px; max-width: 460px; }
 
+  .history-row {
+    margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+  }
+  .history-row .what { display: flex; align-items: center; gap: 10px; flex: 1 1 320px; min-width: 0; }
+  .history-row .what p { margin: 0; color: var(--muted); font-size: 12px; line-height: 18px; }
+  .history-row .what strong { font-size: 13px; }
+  .history-row input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .history-row label.btn:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .history-row.dragging { border-color: var(--primary); background: var(--primary-soft); }
+  .note-card { padding: 14px 20px; display: flex; gap: 12px; align-items: center; color: var(--text-2); font-size: 13px; }
+  .note-card .badge-icon { width: 32px; height: 32px; border-radius: 6px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); flex: none; }
+  .paths { display: flex; flex-wrap: wrap; gap: 6px; }
   details.config { margin-top: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--canvas); }
   details.config summary {
     list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -366,7 +379,7 @@
         </div>
         <div class="step-actions">
           <button class="btn" id="demo" type="button" disabled><svg class="icon" style="color:var(--primary)"><use href="#i-play"/></svg>Try with 5,000 demo tickets</button>
-          <button class="btn ghost" id="download-demo" type="button" hidden><svg class="icon"><use href="#i-download"/></svg>Download demo CSV</button>
+          <button class="btn ghost" id="download-demo" type="button" hidden><svg class="icon"><use href="#i-download"/></svg>Download demo files</button>
         </div>
       </div>
 
@@ -376,6 +389,19 @@
         <strong>Drop a CSV or JSON export here, or <span class="browse">browse files</span></strong>
         <p id="drop-hint">Any helpdesk export works once its column names are mapped below. Files are read in memory on this device and never sent anywhere.</p>
       </label>
+
+      <div class="history-row" id="history-zone">
+        <div class="what">
+          <span class="drop-icon" style="width:36px;height:36px;margin:0"><svg class="icon"><use href="#i-clock"/></svg></span>
+          <div>
+            <strong>Status history <span class="muted" style="font-weight:400">(optional)</span></strong>
+            <p>One row per status or assignment change: <code>ticket_id, changed_at, field, value</code>. Pauses SLA clocks while waiting, and adds FCR, reopen and escalation rates.</p>
+          </div>
+        </div>
+        <span class="chip good" id="history-chip" hidden></span>
+        <button class="btn sm ghost" id="history-clear" type="button" hidden>Remove</button>
+        <label class="btn sm"><input id="history-file" type="file" accept=".csv,.json" disabled><svg class="icon"><use href="#i-upload"/></svg>Add history file</label>
+      </div>
 
       <details class="config" id="config-panel">
         <summary>
@@ -397,7 +423,7 @@
             <span class="label">Mapping check</span>
             <div id="mapping-summary" class="muted" style="font-size:12px">Choose a file to check that every mapped column exists.</div>
             <ul id="mapping-list"></ul>
-            <span class="muted" style="font-size:11px;margin-top:auto">Durations: <code>15m</code>, <code>4h</code>, <code>3d</code>, <code>1h30m</code>. Calendar: <code>24x7</code> (business hours arrive in v0.2).</span>
+            <span class="muted" style="font-size:11px;margin-top:auto">Durations: <code>15m</code>, <code>4h</code>, <code>3d</code>, <code>1h30m</code>. Calendars: <code>24x7</code> or one defined under <code>calendars:</code>; targets count working time.</span>
           </div>
         </div>
       </details>
@@ -423,14 +449,19 @@
       </div>
 
       <div class="kpis" id="kpis"></div>
+      <div class="kpis" id="handling" hidden></div>
+      <div class="card note-card reveal-results" id="handling-note" hidden>
+        <span class="badge-icon"><svg class="icon"><use href="#i-clock"/></svg></span>
+        <span>Add a status history file to pause SLA clocks while tickets wait, and to see first-contact resolution, reopen and escalation rates.</span>
+      </div>
 
       <div class="card table-card reveal-results">
         <div class="card-head">
           <div>
             <h2>SLA by priority</h2>
-            <p class="sub">Response and resolution performance for each priority in your SLA policy.</p>
+            <p class="sub" id="sla-sub">Response and resolution performance for each priority in your SLA policy.</p>
           </div>
-          <span class="chip">Breach rate = breached / (met + breached)</span>
+          <span style="display:flex;flex-wrap:wrap;gap:6px"><span class="chip primary" id="calendars-chip"></span><span class="chip">Breach rate = breached / (met + breached)</span></span>
         </div>
         <div class="table-scroll">
           <table>
@@ -509,8 +540,8 @@
 <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
 <script>
-const DEFAULT_CONFIG = `# Matches the columns written by the demo generator.
-# Change the right-hand names to match your export's headers.
+const DEFAULT_CONFIG = `# Matches the demo data. Change the right-hand names to match your export;
+# common Jira, ServiceNow, Zendesk, Freshdesk and ClickUp names are detected anyway.
 timezone: Europe/London
 
 columns:
@@ -523,15 +554,27 @@ columns:
   first_response: first_response_at
   resolved: resolved_at
 
-sla:
-  P1: {response: 15m, resolve: 4h, calendar: 24x7}
-  P2: {response: 1h,  resolve: 8h, calendar: 24x7}
-  P3: {response: 4h,  resolve: 3d, calendar: 24x7}
-  P4: {response: 8h,  resolve: 5d, calendar: 24x7}
-  # P5: {response: 1d, resolve: 10d, calendar: 24x7}
+# Working-time calendars (24x7 is built in).
+calendars:
+  business:
+    days: [mon-fri]
+    hours: "08:00-18:00"
+    holidays: [2026-01-01, 2026-04-03, 2026-04-06, 2026-05-04,
+               2026-05-25, 2026-08-31, 2026-12-25, 2026-12-28]
 
-# Columns are also detected automatically (Jira, ServiceNow, Zendesk,
-# Freshdesk, ClickUp names), so most exports work without edits.
+# Your SLA targets. They count working time on the calendar:
+# on a 10-hour business day, 30h is three working days.
+sla:
+  P1: {response: 15m, resolve: 4h,  calendar: 24x7}
+  P2: {response: 1h,  resolve: 8h,  calendar: business}
+  P3: {response: 4h,  resolve: 30h, calendar: business}
+  P4: {response: 8h,  resolve: 50h, calendar: business}
+  # P5: {response: 1d, resolve: 10d, calendar: business}
+
+# With a status history file:
+pause_statuses: [Waiting for customer, Pending vendor]
+escalation_tiers: [L1 Service Desk, L2 Infrastructure, Vendor]
+
 # Priorities like "High (P3)" map to P3 automatically; map other names here:
 # priority_aliases: {Urgent: P1, Normal: P3}
 # Numeric dates like 05/08/2026: auto, dmy or mdy
@@ -544,7 +587,7 @@ import pandas as pd
 from itsm_insights.analysis import analyze
 from itsm_insights.config import ConfigError, load_config
 from itsm_insights.generator import generate, to_csv
-from itsm_insights.loaders import LoaderError, check_mapping, load_tickets
+from itsm_insights.loaders import LoaderError, check_mapping, load_history, load_tickets
 
 CONFIG_PATH = "/tmp/sla.yaml"
 
@@ -562,18 +605,21 @@ def mapping(path, config_text):
     except (ConfigError, LoaderError, ValueError) as exc:
         return json.dumps({"error": _friendly(exc)})
 
-def run(path, config_text):
+def run(path, history_path, config_text):
     try:
         cfg = _config(config_text)
-        return json.dumps(analyze(load_tickets(path, cfg), cfg).as_dict())
+        history = load_history(history_path, cfg) if history_path else None
+        return json.dumps(analyze(load_tickets(path, cfg), cfg, history=history).as_dict())
     except (ConfigError, LoaderError, ValueError) as exc:
         return json.dumps({"error": _friendly(exc)})
     except Exception:
         return json.dumps({"error": "Unexpected error:\\n" + traceback.format_exc(limit=3)})
 
-def make_demo(path, n):
+def make_demo(path, history_path, n):
     end = pd.Timestamp.now(tz="Europe/London").floor("h")
-    to_csv(generate(n, end=end, seed=42), path)
+    demo = generate(n, end=end, seed=42)
+    to_csv(demo.tickets, path)
+    to_csv(demo.history, history_path)
 `;
 
 const GH = "https://github.com/musaraza004/itsm-insights";
@@ -582,6 +628,7 @@ const PRIORITY_DOT = { P1: "var(--bad-fill)", P2: "var(--warn-fill)", P3: "var(-
 const $ = (id) => document.getElementById(id);
 const nf = (n) => Number(n).toLocaleString("en-GB");
 let py = null, lastResult = null, currentPath = null, currentLabel = "";
+let historyPath = null, historyLabel = "";
 
 const motionOK = () =>
   typeof anime !== "undefined" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -714,10 +761,54 @@ function render(r) {
       `<div class="row3"><span>Open, in SLA: ${nf(row.resolve.pending)}</span><span>TTR ${fmtDuration(s.median_seconds)} (P90 ${fmtDuration(s.p90_seconds)})</span></div></div>`;
   }).join("");
 
+  renderHandling(r.handling);
+  $("calendars-chip").textContent = "Clocks: " + calendarSummary(r.sla.calendars || {});
+  $("sla-sub").textContent = r.handling
+    ? "Measured in working time on each priority's calendar, with clocks paused while tickets wait."
+    : "Measured in working time on each priority's calendar.";
   renderHeat(r.load);
   renderBacklog(r.backlog_ageing, t.open);
   renderChecks(r.warnings);
   $("results").hidden = false;
+}
+
+function calendarSummary(calendars) {
+  const groups = {};
+  Object.entries(calendars).forEach(([p, name]) => { (groups[name] = groups[name] || []).push(p); });
+  return Object.entries(groups)
+    .map(([name, ps]) => `${ps.length > 1 ? ps[0] + "-" + ps[ps.length - 1] : ps[0]} ${name}`)
+    .join(" · ");
+}
+
+function rateTile(label, rate, detail, toneFor, foot = "") {
+  if (rate.rate === null) return kpiTile({ label, value: "-", detail: "No tickets to measure" });
+  const t = toneFor(rate.rate);
+  return kpiTile({
+    label, badge: `<span class="chip ${t}">${toneLabel[t]}</span>`,
+    value: pctText(rate.rate), cls: `tone-${t}`,
+    count: { to: (rate.rate * 100).toFixed(1), format: "pct" },
+    detail: `<b>${nf(rate.count)}</b> of ${nf(rate.of)} ${detail}`, foot,
+  });
+}
+
+function renderHandling(h) {
+  $("handling").hidden = !h;
+  $("handling-note").hidden = !!h;
+  if (!h) { $("handling").innerHTML = ""; return; }
+  const higherBetter = (r) => r >= 0.7 ? "good" : r >= 0.5 ? "warn" : "bad";
+  const lowerBetter = (r) => r < 0.05 ? "good" : r < 0.1 ? "warn" : "bad";
+  const paths = Object.entries(h.escalation_paths || {}).slice(0, 3)
+    .map(([k, n]) => `<span class="chip">${esc(k)}: ${nf(n)}</span>`).join("");
+  $("handling").innerHTML =
+    rateTile("First-contact resolution", h.fcr, "resolved tickets handled once", higherBetter) +
+    rateTile("Reopened", h.reopen, "resolved tickets", lowerBetter) +
+    rateTile("Escalated", h.escalation, "tickets", (r) => r < 0.15 ? "good" : r < 0.3 ? "warn" : "bad",
+      paths ? `<div class="paths">${paths}</div>` : "") +
+    kpiTile({
+      label: "History coverage", value: nf(h.tickets_with_history),
+      count: { to: h.tickets_with_history, format: "int" },
+      detail: "tickets with status or assignment history",
+    });
 }
 
 function renderHeat(load) {
@@ -850,7 +941,7 @@ async function analyse() {
   await paint();
   await checkMapping();
   const started = performance.now();
-  const out = JSON.parse(py.globals.get("run")(currentPath, $("config").value));
+  const out = JSON.parse(py.globals.get("run")(currentPath, historyPath, $("config").value));
   const ms = Math.round(performance.now() - started);
   if (out.error) {
     $("results").hidden = true;
@@ -876,7 +967,24 @@ async function useFile(file) {
   currentPath = "/tmp/upload" + ext;
   currentLabel = file.name;
   py.FS.writeFile(currentPath, new Uint8Array(await file.arrayBuffer()));
+  if (historyLabel.startsWith("Demo")) setHistory(null, "");  // demo history does not fit real tickets
   await analyse();
+}
+
+function setHistory(path, label) {
+  historyPath = path;
+  historyLabel = label;
+  $("history-chip").hidden = !path;
+  $("history-clear").hidden = !path;
+  $("history-chip").textContent = label;
+}
+
+async function useHistoryFile(file) {
+  if (!file || !py) return;
+  const ext = file.name.toLowerCase().endsWith(".json") ? ".json" : ".csv";
+  py.FS.writeFile("/tmp/history" + ext, new Uint8Array(await file.arrayBuffer()));
+  setHistory("/tmp/history" + ext, file.name);
+  if (currentPath) await analyse();
 }
 
 async function useDemo() {
@@ -884,7 +992,8 @@ async function useDemo() {
   $("config").value = DEFAULT_CONFIG;
   setStatus("busy", "Generating 5,000 synthetic tickets...");
   await paint();
-  py.globals.get("make_demo")("/tmp/demo.csv", 5000);
+  py.globals.get("make_demo")("/tmp/demo.csv", "/tmp/demo_history.csv", 5000);
+  setHistory("/tmp/demo_history.csv", "Demo history");
   currentPath = "/tmp/demo.csv";
   currentLabel = "Demo data (synthetic, 5,000 tickets)";
   $("download-demo").hidden = false;
@@ -906,8 +1015,17 @@ const zone = $("dropzone");
 zone.addEventListener("drop", async (e) => { e.preventDefault(); await useFile(e.dataTransfer.files[0]); });
 
 $("demo").addEventListener("click", useDemo);
-$("download-demo").addEventListener("click", () =>
-  download("itsm-demo-tickets.csv", py.FS.readFile("/tmp/demo.csv", { encoding: "utf8" }), "text/csv"));
+$("download-demo").addEventListener("click", () => {
+  download("itsm-demo-tickets.csv", py.FS.readFile("/tmp/demo.csv", { encoding: "utf8" }), "text/csv");
+  setTimeout(() => download("itsm-demo-history.csv",
+    py.FS.readFile("/tmp/demo_history.csv", { encoding: "utf8" }), "text/csv"), 300);
+});
+$("history-file").addEventListener("change", async (e) => { await useHistoryFile(e.target.files[0]); e.target.value = ""; });
+$("history-clear").addEventListener("click", async () => { setHistory(null, ""); if (currentPath) await analyse(); });
+const hzone = $("history-zone");
+["dragenter", "dragover"].forEach((ev) => hzone.addEventListener(ev, (e) => { e.preventDefault(); hzone.classList.add("dragging"); }));
+["dragleave", "drop"].forEach((ev) => hzone.addEventListener(ev, () => hzone.classList.remove("dragging")));
+hzone.addEventListener("drop", async (e) => { e.preventDefault(); await useHistoryFile(e.dataTransfer.files[0]); });
 const saveJson = () => lastResult && download("itsm-insights-results.json", JSON.stringify(lastResult, null, 2), "application/json");
 $("download-json").addEventListener("click", saveJson);
 $("download-json-2").addEventListener("click", saveJson);
@@ -938,6 +1056,7 @@ async function boot() {
     await py.pyimport("micropip").install(new URL(manifest.wheel, location.href).href, { deps: false });
     py.runPython(GLUE);
     $("file").disabled = false;
+    $("history-file").disabled = false;
     $("demo").disabled = false;
     setEngine("ready", `Python engine ready · itsm-insights ${manifest.version}`);
     setStatus("idle", "Ready for a file");

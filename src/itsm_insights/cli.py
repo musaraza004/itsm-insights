@@ -15,8 +15,8 @@ from itsm_insights import __version__
 from itsm_insights.analysis import Analysis, analyze
 from itsm_insights.config import ConfigError, load_config
 from itsm_insights.durations import format_duration
-from itsm_insights.generator import generate, to_csv
-from itsm_insights.loaders import LoaderError, load_tickets
+from itsm_insights.generator import generate, history_path, to_csv
+from itsm_insights.loaders import LoaderError, load_history, load_tickets
 from itsm_insights.metrics.sla import BreachSummary
 
 app = typer.Typer(
@@ -57,13 +57,22 @@ def analyze_cmd(
             "Defaults to the latest timestamp in the export."
         ),
     ] = None,
+    history: Annotated[
+        Path | None,
+        typer.Option(
+            "--history",
+            help="Status/assignment history (ticket, time, field, value). Enables SLA clock "
+            "pausing and FCR, reopen and escalation rates.",
+        ),
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Print results as JSON.")] = False,
 ) -> None:
     """Calculate SLA breach rates and time to resolve, and print a summary."""
     try:
         cfg = load_config(config)
         tickets = load_tickets(path, cfg)
-        result = analyze(tickets, cfg, _parse_as_of(as_of))
+        events = load_history(history, cfg) if history else None
+        result = analyze(tickets, cfg, _parse_as_of(as_of), history=events)
     except (ConfigError, LoaderError, ValueError) as exc:
         err_console.print(f"[bold red]Error:[/] {exc}")
         raise typer.Exit(code=1) from exc
@@ -90,15 +99,23 @@ def generate_demo_cmd(
         bool, typer.Option("--truth", help="Include the planted SLA outcome columns.")
     ] = False,
 ) -> None:
-    """Write a synthetic ticket export. No real data involved."""
+    """Write a synthetic ticket export and its status history. No real data involved."""
     try:
-        df = generate(tickets, end=end, days=days, seed=seed, timezone=timezone, truth=truth)
+        demo = generate(tickets, end=end, days=days, seed=seed, timezone=timezone, truth=truth)
     except ValueError as exc:
         err_console.print(f"[bold red]Error:[/] {exc}")
         raise typer.Exit(code=1) from exc
-    to_csv(df, out)
+    to_csv(demo.tickets, out)
+    events = history_path(out)
+    to_csv(demo.history, events)
+    df = demo.tickets
     open_count = int(df["resolved_at"].isna().sum())
-    console.print(f"Wrote {len(df):,} synthetic tickets ({open_count:,} open) to [bold]{out}[/]")
+    console.print(
+        f"Wrote {len(df):,} synthetic tickets ({open_count:,} open) to [bold]{out}[/]\n"
+        f"and {len(demo.history):,} history events to [bold]{events}[/]\n"
+        f"Analyse with: itsm-insights analyze {out} --history {events} "
+        "--config examples/sla.yaml"
+    )
 
 
 def _parse_as_of(value: str | None) -> pd.Timestamp | None:
@@ -142,10 +159,10 @@ def _print_summary(result: Analysis, source: str) -> None:
     )
 
     table = Table(title="SLA and time to resolve by priority", title_justify="left")
-    table.add_column("Priority")
+    table.add_column("Priority", no_wrap=True)
     table.add_column("Tickets", justify="right")
-    for header in ("Response\nbreach", "Resolve\nbreach", "Open,\nin SLA"):
-        table.add_column(header, justify="right")
+    for header in ("Resp.\nbreach", "Res.\nbreach", "Open,\nin SLA"):
+        table.add_column(header, justify="right", no_wrap=True)
     for header in ("Mean\nTTR", "Median\nTTR", "P90\nTTR"):
         table.add_column(header, justify="right", no_wrap=True)
 
@@ -175,13 +192,39 @@ def _print_summary(result: Analysis, source: str) -> None:
     )
     console.print(table)
     console.print(
-        "[dim]Breach rate = breached / (met + breached); pending tickets are excluded. "
-        "TTR = created to resolved, wall-clock (24x7).[/]"
+        f"[dim]SLA clocks: {_calendar_summary(result.calendars)}. "
+        "Breach rate = breached / (met + breached); pending tickets are excluded. "
+        "TTR = created to resolved, wall-clock.[/]"
     )
+
+    if result.handling:
+        h = result.handling
+        console.print(
+            f"\nFirst-contact resolution: [bold]{_pct(h['fcr']['rate'])}[/] "
+            f"[dim]({h['fcr']['count']:,} of {h['fcr']['of']:,} resolved)[/]\n"
+            f"Reopened:                 [bold]{_pct(h['reopen']['rate'])}[/] "
+            f"[dim]({h['reopen']['count']:,} of {h['reopen']['of']:,})[/]\n"
+            f"Escalated:                [bold]{_pct(h['escalation']['rate'])}[/] "
+            f"[dim]({h['escalation']['count']:,} of {h['escalation']['of']:,})[/]"
+        )
+        for path, count in list(h["escalation_paths"].items())[:5]:
+            console.print(f"  [dim]{path}: {count:,}[/]")
 
     for warning in result.warnings:
         console.print(f"[yellow]Warning: {warning}[/]")
     console.print()
+
+
+def _calendar_summary(calendars: dict[str, str]) -> str:
+    """{"P1": "24x7", "P2": "business", "P3": "business"} -> "P1 24x7, P2-P3 business"."""
+    groups: dict[str, list[str]] = {}
+    for priority, name in calendars.items():
+        groups.setdefault(name, []).append(priority)
+    parts = []
+    for name, priorities in groups.items():
+        label = priorities[0] if len(priorities) == 1 else f"{priorities[0]}-{priorities[-1]}"
+        parts.append(f"{label} {name}")
+    return ", ".join(parts)
 
 
 if __name__ == "__main__":
