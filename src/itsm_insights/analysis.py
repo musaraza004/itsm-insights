@@ -207,7 +207,7 @@ def _data_warnings(
         if config.pause_statuses:
             warnings.append(
                 "pause_statuses is set but no history file was given, so SLA clocks run "
-                "without pausing. Pass the status history to enable it (--history)."
+                "without pausing. Add a status history file (CLI: --history) to enable it."
             )
         return warnings
 

@@ -70,12 +70,35 @@ Design notes:
 - *Stop-before-start is bad data.* Those tickets are excluded from the affected rate and reported
   as a warning.
 
-### Calendar (v0.1)
+### Calendars
 
-v0.1 measures wall-clock (24x7) time only. A ticket opened Friday 18:00 with a 4-hour target is
-breached at 22:00 Friday. Business-hours calendars and clock pausing on statuses such as "Waiting
-for customer" are planned for v0.2; until then a config using `calendar: business` is rejected
-with a clear message rather than silently treated as 24x7.
+Elapsed SLA time is working time on the calendar each priority names:
+
+- `24x7`: every second counts.
+- A business calendar under `calendars:` (working days, opening hours, holidays, timezone).
+  Windows are built per day in the calendar's local timezone and compared in UTC, so the day the
+  clocks change still has its full opening hours. Overnight windows are not supported yet.
+
+Targets are working time on that calendar: on a 10-hour business day `30h` is three working
+days, and `1d` always means 24 hours of working time, not one business day. A ticket created
+outside working hours starts its clock at the next opening time; a ticket opened Friday 18:00
+and resolved Monday 12:00 on a Mon-Fri 08:00-18:00 calendar used 4 working hours.
+
+### Clock pausing
+
+With a status history, the **resolution** clock stops while a ticket is in a pausing status:
+
+- every status in `pause_statuses` (case-insensitive), e.g. "Waiting for customer";
+- every status that matches `resolved_statuses` (prefix match), so the time between a
+  resolution and a reopen does not count.
+
+A status holds from its history event until the next status event for that ticket; the last one
+holds until the analysis time. Pauses are clipped to the ticket's own clock (created to stop) and
+only their *working* time is subtracted. A ticket still waiting at the analysis time is therefore
+pending, not breached, if its active time is within target.
+
+The **response** clock is never paused: waiting on the customer cannot happen before anyone has
+answered.
 
 ## Time to resolve
 
@@ -88,6 +111,23 @@ Created → resolved for resolved tickets, wall-clock. Reported as:
 
 Open tickets are not included; their time to resolve is not known yet. Backlog ageing
 covers them.
+
+## Handling: FCR, reopen and escalation
+
+These need a status/assignment history (`ticket_id, changed_at, field, value`). The first event
+for a field is its initial value; later events with a different value are changes. Tickets with
+no history are left out of every denominator rather than assumed clean.
+
+| Metric | Numerator | Denominator |
+| --- | --- | --- |
+| First-contact resolution | resolved, never reopened, never escalated, never reassigned | resolved tickets |
+| Reopen rate | tickets with at least one change from a resolved status to another status | tickets resolved at least once |
+| Escalation rate | tickets with at least one move to a higher tier in `escalation_tiers` | all tickets |
+
+- A reassignment is any change of assignee group or assignee after its first value.
+- Only upward moves between listed tiers are escalations; lateral moves, moves down and groups
+  not in the list are reassignments only.
+- Resolved to Closed is not a reopen.
 
 ## Peak-hour load
 
@@ -104,6 +144,12 @@ warning).
 
 ## Validating with synthetic data
 
-The generator plants each ticket's SLA outcome first and then derives timestamps that land clearly
-inside or outside the target. Tickets whose stop event would fall after the export time are left
-open. The test suite asserts that `sla.evaluate` reproduces every planted outcome exactly.
+The generator decides how much active SLA time each ticket uses (clearly inside or outside its
+target), lays that time out on the priority's calendar as working-time segments, and inserts
+waiting periods, resolved-then-reopened gaps, escalations and reassignments between them.
+Everything after the export time is cut off, so some tickets are open and some are mid-wait.
+
+Truth is measured from the generator's own segments with `working_seconds` only, independently
+of the pause and SLA code. The tests load the exported CSV files and require that every SLA
+outcome, reopen, escalation and first-contact-resolution flag is reproduced exactly, and that
+measuring the same data without calendars and pauses gets many of them wrong.

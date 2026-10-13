@@ -43,6 +43,7 @@ service managers are asked every week:
 
 - **Are we meeting our SLAs**, and for which priorities do we fail?
 - **How long do tickets really take** to resolve, and how bad is the long tail?
+- **How many are fixed at first contact**, and how many get reopened or escalated?
 - **When does work arrive**, so shifts can be staffed to match?
 - **How old is the backlog**, and what is going stale?
 
@@ -55,8 +56,9 @@ that runs the same package in your browser.
 | --- | --- |
 | **Private by design** | Everything runs locally. The web app executes Python in the browser via WebAssembly; tickets are never uploaded. No telemetry. |
 | **Works with any export** | A small YAML file maps your column names. Clear errors name the missing column, the row and the bad value. |
+| **Measures SLAs the way contracts do** | Business-hours calendars with holidays and time zones, and clocks that pause while a ticket waits on the customer or a vendor. |
 | **Honest metrics** | Pending tickets are not counted as met, P90 sits next to the mean, and every exclusion is reported. Definitions are in [METHODOLOGY.md](docs/METHODOLOGY.md). |
-| **Verified against known answers** | A synthetic data generator plants each ticket's SLA outcome, and the tests require the metrics to recover every one exactly. |
+| **Verified against known answers** | A synthetic data generator plants each ticket's SLA outcome, waiting periods, reopens and escalations, and the tests require the metrics to recover every one exactly. |
 
 ## Quick start
 
@@ -68,31 +70,43 @@ export, or click *Try with 5,000 demo tickets*.
 
 ```bash
 pip install git+https://github.com/musaraza004/itsm-insights.git
-itsm-insights generate-demo --tickets 5000 --out demo.csv
-itsm-insights analyze demo.csv
+itsm-insights generate-demo --tickets 5000 --out demo.csv       # also writes demo_history.csv
+itsm-insights analyze demo.csv --history demo_history.csv --config examples/sla.yaml
 ```
 
 Example output (abridged; the demo data depends on the date it is generated):
 
 ```text
-Response SLA breached:   9.3% (462 of 4,983)
-Resolution SLA breached: 9.0% (437 of 4,858)
+Response SLA breached:   10.0% (498 of 4,985)
+Resolution SLA breached: 8.7% (420 of 4,838)
 
 SLA and time to resolve by priority
-| Priority | Tickets | Response | Resolve | Open,  |  Mean | Median |     P90 |
-|          |         |   breach |  breach | in SLA |   TTR |    TTR |     TTR |
-|----------+---------+----------+---------+--------+-------+--------+---------|
-| P1       |     148 |     7.4% |   13.5% |      0 | 3h 4m |  2h 9m |  6h 25m |
-| P2       |     589 |    11.0% |   18.1% |      4 | 7h 0m |  5h 2m | 17h 14m |
-| ...      |         |          |         |        |       |        |         |
+| Priority | Tickets |  Resp. |   Res. |  Open, |    Mean |  Median |    P90 |
+|          |         | breach | breach | in SLA |     TTR |     TTR |    TTR |
+|----------+---------+--------+--------+--------+---------+---------+--------|
+| P1       |     148 |   9.5% |  15.1% |      2 | 12h 37m |   8h 2m |  1d 7h |
+| P2       |     589 |   9.7% |  15.9% |      5 |   1d 6h | 20h 55m |  3d 0h |
+| ...      |         |        |        |        |         |         |        |
+SLA clocks: P1 24x7, P2-P4 business.
+
+First-contact resolution: 70.8% (3,406 of 4,809 resolved)
+Reopened:                 5.7% (274 of 4,813)
+Escalated:                21.2% (1,060 of 5,000)
+  L1 Service Desk -> L2 Infrastructure: 1,060
+  L2 Infrastructure -> Vendor: 178
 ```
+
+Without `--history` the same tickets show an 18.5% resolution breach rate, because time spent
+waiting on customers and vendors counts against the target. That is the kind of difference this
+tool makes visible.
 
 Useful options:
 
 | Option | Purpose |
 | --- | --- |
 | `--config sla.yaml` | Your SLA targets and column mapping (see below) |
-| `--json` | Machine-readable output, including the heatmap and backlog data |
+| `--history history.csv` | Status/assignment history: pauses SLA clocks and adds FCR, reopen and escalation rates |
+| `--json` | Machine-readable output, including the heatmap, backlog and handling data |
 | `--as-of now` | Measure open tickets against the current time instead of the export's latest timestamp |
 
 ## Using your own export
@@ -119,16 +133,43 @@ columns:                           # only needed when detection picks the wrong 
   created: Created
   resolved: Resolved
 
+calendars:                         # working time; 24x7 is built in
+  business:
+    days: [mon-fri]
+    hours: "08:00-18:00"
+    holidays: [2026-12-25, 2026-12-28]
+
 sla:                               # your real targets, one per priority
-  P1: {response: 15m, resolve: 4h, calendar: 24x7}
-  P2: {response: 1h,  resolve: 8h, calendar: 24x7}
-  P3: {response: 4h,  resolve: 3d, calendar: 24x7}
+  P1: {response: 15m, resolve: 4h,  calendar: 24x7}
+  P2: {response: 1h,  resolve: 8h,  calendar: business}
+  P3: {response: 4h,  resolve: 30h, calendar: business}   # 3 working days of 10h
+
+pause_statuses: [Waiting for customer, Pending vendor]     # with --history
+escalation_tiers: [L1 Service Desk, L2 Infrastructure, Vendor]
 
 priority_aliases: {Urgent: P1}     # names without a P-code
 date_order: auto                   # or dmy / mdy for numeric dates like 05/08/2026
 ```
 
-Durations accept `s`, `m`, `h`, `d` and `w`, and can be combined (`1h30m`).
+Durations accept `s`, `m`, `h`, `d` and `w`, and can be combined (`1h30m`). On a business
+calendar they are working time, so write business-day targets in hours (`1d` is 24 working hours).
+
+SLA targets are not universal: every organisation sets its own in its service agreements. In Jira
+Service Management you will find yours under *Project settings > SLAs*, including the calendar
+each one uses.
+
+**Status history** (optional) is a second file with one row per change:
+
+```text
+ticket_id,changed_at,field,value
+INC1001,2026-01-05T09:00:00+00:00,status,Open
+INC1001,2026-01-05T09:00:00+00:00,assignee_group,L1 Service Desk
+INC1001,2026-01-05T11:20:00+00:00,status,Waiting for customer
+INC1001,2026-01-06T10:05:00+00:00,status,In Progress
+```
+
+Map different column names under `history_columns:`. Fields other than status, assignee group
+and assignee are ignored, so a full changelog export can be used as-is.
 
 > **Tip:** export straight from your service desk and upload that file. Opening an export in
 > Excel and saving it again can strip seconds and turn date columns into bare times.
@@ -142,6 +183,9 @@ Durations accept `s`, `m`, `h`, `d` and `w`, and can be combined (`1h30m`).
 | **Time to resolve** | Created to resolved, as mean, median and P90. The median and P90 are the honest numbers; a few stale tickets inflate the mean. |
 | **Peak-hour load** | Tickets created by weekday and hour in local time, shown as a 7 × 24 heatmap. |
 | **Backlog ageing** | Open tickets by age: under 1 day, 1 to 3 days, 3 to 7 days, over 7 days. |
+| **First-contact resolution** | Resolved tickets never reopened, escalated or reassigned, out of resolved tickets. Needs history. |
+| **Reopen rate** | Tickets moved from a resolved status back to work, out of tickets resolved at least once. Needs history. |
+| **Escalation rate** | Tickets moved up at least one support tier, out of all tickets. Needs history. |
 
 How SLA outcomes are counted:
 
@@ -149,6 +193,9 @@ How SLA outcomes are counted:
   *pending* and excluded, because counting them as met would flatter the result.
 - An open ticket already past its target counts as **breached** at the analysis time.
 - Exactly on target counts as **met**.
+- Time is **working time** on the priority's calendar. With history, the resolution clock also
+  stops while the ticket waits (and between a resolution and a reopen); the response clock never
+  pauses.
 - Tickets with no SLA for their priority, or with timestamps out of order, are excluded and
   reported as warnings, never dropped silently.
 
@@ -158,9 +205,12 @@ Real tickets are never used. `itsm-insights generate-demo` builds a synthetic se
 arrivals follow office hours with a Monday-morning spike, categories mirror a typical L1 queue
 (password resets, VPN, printers), and recent tickets are still open at export time.
 
-The generator decides each ticket's SLA outcome *before* it creates the timestamps, so it knows
-the right answer. The test suite checks that the metrics reproduce every planted outcome exactly,
-alongside boundary tests (exactly on target, one second over, open tickets, mixed time zones).
+The generator decides how much SLA time each ticket uses *before* it creates any timestamps, lays
+that time out on a business-hours calendar, and inserts waiting periods, reopens and escalations,
+so it knows the right answer. The test suite reads the exported files back and checks that every
+planted SLA outcome, reopen, escalation and first-contact resolution is reproduced exactly, and
+that measuring the same data naively (no calendars, no pausing) gets many of them wrong. Boundary
+tests cover exactly-on-target, one second over, weekends, holidays and daylight-saving days.
 Run `generate-demo --truth` to see the planted outcomes yourself.
 
 ## Project structure
@@ -168,9 +218,11 @@ Run `generate-demo --truth` to see the planted outcomes yourself.
 ```text
 src/itsm_insights/
 ├── cli.py              # analyze and generate-demo commands
-├── config.py           # YAML config: SLA policies, column mapping (Pydantic)
-├── loaders/generic.py  # CSV/JSON loading, timestamp normalisation, validation
-├── metrics/            # sla.py, mttr.py, load.py, backlog.py
+├── config.py           # YAML config: SLA policies, calendars, column mapping (Pydantic)
+├── calendars.py        # 24x7 and business-hours working time
+├── timeline.py         # pause intervals and handling facts from history
+├── loaders/            # tickets (with column detection) and history
+├── metrics/            # sla.py, mttr.py, handling.py, load.py, backlog.py
 ├── analysis.py         # runs every metric, collects warnings
 └── generator.py        # synthetic tickets with planted outcomes
 web/                    # the browser app (Pyodide + anime.js), deployed to GitHub Pages
@@ -182,9 +234,10 @@ tests/                  # pytest suite
 
 - [x] **v0.1** CSV/JSON loader, SLA breach rates (24x7), time to resolve, synthetic generator,
   CLI, browser app, peak-hour heatmap, backlog ageing
-- [ ] **v0.2** Business-hours calendars (working hours, weekends, holidays, time zones), SLA clock
-  pausing from status history, first-contact resolution, reopen and escalation rates
-  ([design](docs/superpowers/specs/2026-10-13-v0.2-design.md))
+- [x] **v0.2** Business-hours calendars (working hours, weekends, holidays, time zones), SLA clock
+  pausing from status history, first-contact resolution, reopen and escalation rates,
+  automatic column detection ([design](docs/superpowers/specs/2026-10-13-v0.2-design.md),
+  [changelog](CHANGELOG.md))
 - [ ] **v0.3** Repeat incident detection, Jira and ClickUp loaders
 - [ ] **v0.4** Self-contained HTML report, Docker image
 - [ ] **v1.0** Documentation site, PyPI release
@@ -204,7 +257,7 @@ To work on the web app locally, build the wheel next to the page and serve the f
 
 ```bash
 mkdir -p _site && cp -r web/. _site/ && pip wheel . --no-deps -w _site
-echo '{"wheel": "itsm_insights-0.1.0-py3-none-any.whl", "version": "0.1.0"}' > _site/manifest.json
+echo '{"wheel": "itsm_insights-0.2.0-py3-none-any.whl", "version": "0.2.0"}' > _site/manifest.json
 python -m http.server 8765 --directory _site
 ```
 
