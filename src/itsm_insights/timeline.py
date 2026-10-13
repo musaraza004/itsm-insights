@@ -33,8 +33,25 @@ def _matcher(config: Config):
     return is_paused, is_done
 
 
-def _values(rows: pd.DataFrame) -> list[str]:
-    return [str(v).strip().casefold() for v in rows["value"].fillna("")]
+def _sequences(history: pd.DataFrame, field: str) -> dict[str, list[tuple[pd.Timestamp, str]]]:
+    """Per ticket, the (time, normalised value) events of one field, in time order.
+
+    Plain-Python iteration: this runs once per history row, and per-group pandas
+    operations were the bottleneck on large histories.
+    """
+    rows = history[history["field"] == field]
+    out: dict[str, list[tuple[pd.Timestamp, str]]] = {}
+    for ticket, at, value in zip(
+        rows["id"].astype(str), rows["at"], rows["value"].fillna(""), strict=True
+    ):
+        out.setdefault(ticket, []).append((at, str(value).strip().casefold()))
+    for events in out.values():
+        events.sort(key=lambda e: e[0])  # stable: history order breaks ties
+    return out
+
+
+def _changes(values: list[str]) -> list[tuple[str, str]]:
+    return [(a, b) for a, b in zip(values, values[1:], strict=False) if a != b]
 
 
 def pause_intervals(
@@ -42,24 +59,17 @@ def pause_intervals(
 ) -> dict[str, list[Interval]]:
     """Merged pause intervals per ticket id; tickets that never paused are omitted."""
     is_paused, _ = _matcher(config)
-    status = history[history["field"] == "status"]
     out: dict[str, list[Interval]] = {}
-    for ticket, rows in status.groupby("id", sort=False):
-        times = list(rows["at"])
-        values = _values(rows)
-        intervals = []
-        for i, value in enumerate(values):
-            if is_paused(value):
-                end = times[i + 1] if i + 1 < len(times) else as_of
-                intervals.append((times[i], end))
+    for ticket, events in _sequences(history, "status").items():
+        intervals = [
+            (at, events[i + 1][0] if i + 1 < len(events) else as_of)
+            for i, (at, value) in enumerate(events)
+            if is_paused(value)
+        ]
         merged = merge_intervals(intervals)
         if merged:
-            out[str(ticket)] = merged
+            out[ticket] = merged
     return out
-
-
-def _changes(values: list[str]) -> list[tuple[str, str]]:
-    return [(a, b) for a, b in zip(values, values[1:], strict=False) if a != b]
 
 
 def ticket_facts(tickets: pd.DataFrame, history: pd.DataFrame, config: Config) -> pd.DataFrame:
@@ -69,27 +79,33 @@ def ticket_facts(tickets: pd.DataFrame, history: pd.DataFrame, config: Config) -
     """
     _, is_done = _matcher(config)
     tiers = {t.casefold(): i for i, t in enumerate(config.escalation_tiers)}
-    ids = tickets["id"].astype(str)
-    facts = pd.DataFrame(
-        {"has_history": False, "reopens": 0, "escalations": 0, "reassignments": 0},
-        index=pd.Index(ids, name="id"),
-    )
-    known = history[history["id"].astype(str).isin(set(ids))]
-    for (ticket, field), rows in known.groupby(["id", "field"], sort=False):
-        ticket = str(ticket)
-        facts.loc[ticket, "has_history"] = True
-        values = _values(rows)
-        changes = _changes(values)
-        if field == "status":
-            facts.loc[ticket, "reopens"] += sum(is_done(a) and not is_done(b) for a, b in changes)
-        else:
-            facts.loc[ticket, "reassignments"] += len(changes)
+    ids = list(tickets["id"].astype(str))
+    reopens = dict.fromkeys(ids, 0)
+    escalations = dict.fromkeys(ids, 0)
+    reassignments = dict.fromkeys(ids, 0)
+    seen: set[str] = set()
+    for field in ("status", "assignee_group", "assignee"):
+        for ticket, events in _sequences(history, field).items():
+            if ticket not in reopens:
+                continue
+            seen.add(ticket)
+            changes = _changes([value for _, value in events])
+            if field == "status":
+                reopens[ticket] += sum(is_done(a) and not is_done(b) for a, b in changes)
+                continue
+            reassignments[ticket] += len(changes)
             if field == "assignee_group":
-                facts.loc[ticket, "escalations"] += sum(
+                escalations[ticket] += sum(
                     a in tiers and b in tiers and tiers[b] > tiers[a] for a, b in changes
                 )
-    return facts.astype(
-        {"has_history": bool, "reopens": int, "escalations": int, "reassignments": int}
+    return pd.DataFrame(
+        {
+            "has_history": [t in seen for t in ids],
+            "reopens": [reopens[t] for t in ids],
+            "escalations": [escalations[t] for t in ids],
+            "reassignments": [reassignments[t] for t in ids],
+        },
+        index=pd.Index(ids, name="id"),
     )
 
 
@@ -98,9 +114,8 @@ def escalation_paths(history: pd.DataFrame, config: Config) -> dict[str, int]:
     tiers = {t.casefold(): i for i, t in enumerate(config.escalation_tiers)}
     names = {t.casefold(): t for t in config.escalation_tiers}
     counts: Counter[str] = Counter()
-    groups = history[history["field"] == "assignee_group"]
-    for _, rows in groups.groupby("id", sort=False):
-        for a, b in _changes(_values(rows)):
+    for events in _sequences(history, "assignee_group").values():
+        for a, b in _changes([value for _, value in events]):
             if a in tiers and b in tiers and tiers[b] > tiers[a]:
                 counts[f"{names[a]} -> {names[b]}"] += 1
     return dict(counts.most_common())

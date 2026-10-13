@@ -15,7 +15,7 @@ from itsm_insights import __version__
 from itsm_insights.analysis import Analysis, analyze
 from itsm_insights.config import ConfigError, load_config
 from itsm_insights.durations import format_duration
-from itsm_insights.generator import generate, to_csv
+from itsm_insights.generator import generate, history_path, to_csv
 from itsm_insights.loaders import LoaderError, load_history, load_tickets
 from itsm_insights.metrics.sla import BreachSummary
 
@@ -99,15 +99,23 @@ def generate_demo_cmd(
         bool, typer.Option("--truth", help="Include the planted SLA outcome columns.")
     ] = False,
 ) -> None:
-    """Write a synthetic ticket export. No real data involved."""
+    """Write a synthetic ticket export and its status history. No real data involved."""
     try:
-        df = generate(tickets, end=end, days=days, seed=seed, timezone=timezone, truth=truth)
+        demo = generate(tickets, end=end, days=days, seed=seed, timezone=timezone, truth=truth)
     except ValueError as exc:
         err_console.print(f"[bold red]Error:[/] {exc}")
         raise typer.Exit(code=1) from exc
-    to_csv(df, out)
+    to_csv(demo.tickets, out)
+    events = history_path(out)
+    to_csv(demo.history, events)
+    df = demo.tickets
     open_count = int(df["resolved_at"].isna().sum())
-    console.print(f"Wrote {len(df):,} synthetic tickets ({open_count:,} open) to [bold]{out}[/]")
+    console.print(
+        f"Wrote {len(df):,} synthetic tickets ({open_count:,} open) to [bold]{out}[/]\n"
+        f"and {len(demo.history):,} history events to [bold]{events}[/]\n"
+        f"Analyse with: itsm-insights analyze {out} --history {events} "
+        "--config examples/sla.yaml"
+    )
 
 
 def _parse_as_of(value: str | None) -> pd.Timestamp | None:
@@ -151,10 +159,10 @@ def _print_summary(result: Analysis, source: str) -> None:
     )
 
     table = Table(title="SLA and time to resolve by priority", title_justify="left")
-    table.add_column("Priority")
+    table.add_column("Priority", no_wrap=True)
     table.add_column("Tickets", justify="right")
-    for header in ("Response\nbreach", "Resolve\nbreach", "Open,\nin SLA"):
-        table.add_column(header, justify="right")
+    for header in ("Resp.\nbreach", "Res.\nbreach", "Open,\nin SLA"):
+        table.add_column(header, justify="right", no_wrap=True)
     for header in ("Mean\nTTR", "Median\nTTR", "P90\nTTR"):
         table.add_column(header, justify="right", no_wrap=True)
 

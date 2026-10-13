@@ -23,7 +23,8 @@ def test_defaults_when_no_path():
 def test_example_config_loads():
     cfg = load_config(EXAMPLE)
     assert set(cfg.sla) == {"P1", "P2", "P3", "P4"}
-    assert cfg.sla["P3"].resolve == timedelta(days=3)
+    assert cfg.sla["P3"].resolve == timedelta(hours=30)
+    assert cfg.sla["P3"].calendar == "business"
     assert cfg.timezone == "Europe/London"
 
 
