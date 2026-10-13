@@ -528,6 +528,14 @@ sla:
   P2: {response: 1h,  resolve: 8h, calendar: 24x7}
   P3: {response: 4h,  resolve: 3d, calendar: 24x7}
   P4: {response: 8h,  resolve: 5d, calendar: 24x7}
+  # P5: {response: 1d, resolve: 10d, calendar: 24x7}
+
+# Columns are also detected automatically (Jira, ServiceNow, Zendesk,
+# Freshdesk, ClickUp names), so most exports work without edits.
+# Priorities like "High (P3)" map to P3 automatically; map other names here:
+# priority_aliases: {Urgent: P1, Normal: P3}
+# Numeric dates like 05/08/2026: auto, dmy or mdy
+date_order: auto
 `;
 
 const GLUE = `
@@ -626,9 +634,10 @@ function rateCell(s) {
     `<span class="tone-${t}">${pctText(s.breach_rate)}</span></span>`;
 }
 
-function priorityLabel(p) {
+function priorityLabel(p, fromData = "") {
   const dot = PRIORITY_DOT[p] || "var(--muted)";
-  const label = PRIORITY_LABEL[p] ? ` <small>${PRIORITY_LABEL[p]}</small>` : "";
+  const name = fromData || PRIORITY_LABEL[p];
+  const label = name ? ` <small>${esc(name)}</small>` : "";
   return `<span class="pri"><span class="pri-dot" style="background:${dot}"></span>${esc(p)}${label}</span>`;
 }
 
@@ -682,7 +691,7 @@ function render(r) {
   const byTtr = r.time_to_resolve.by_priority;
   const rows = Object.entries(r.sla.by_priority).map(([p, row]) => {
     const s = byTtr[p] || {};
-    return `<tr><td>${priorityLabel(p)}</td><td>${nf(row.tickets)}</td>` +
+    return `<tr><td>${priorityLabel(p, row.label)}</td><td>${nf(row.tickets)}</td>` +
       `<td>${rateCell(row.response)}</td><td>${rateCell(row.resolve)}</td><td>${nf(row.resolve.pending)}</td>` +
       `<td class="dim">${fmtDuration(s.mean_seconds)}</td><td class="strong">${fmtDuration(s.median_seconds)}</td>` +
       `<td class="dim">${fmtDuration(s.p90_seconds)}</td></tr>`;
@@ -700,7 +709,7 @@ function render(r) {
       return `<div class="metric"><div class="line"><span>${name}</span><span class="num tone-${tn}">${pctText(sum.breach_rate)}</span></div>` +
         `<div class="track"><span class="fill-${tn} grow" data-width="${w}" style="width:${w}%"></span></div></div>`;
     };
-    return `<div class="pri-card"><div class="row1">${priorityLabel(p)}<span class="chip primary">${nf(row.tickets)} tickets</span></div>` +
+    return `<div class="pri-card"><div class="row1">${priorityLabel(p, row.label)}<span class="chip primary">${nf(row.tickets)} tickets</span></div>` +
       `<div class="pair">${metric("Response", row.response)}${metric("Resolve", row.resolve)}</div>` +
       `<div class="row3"><span>Open, in SLA: ${nf(row.resolve.pending)}</span><span>TTR ${fmtDuration(s.median_seconds)} (P90 ${fmtDuration(s.p90_seconds)})</span></div></div>`;
   }).join("");
@@ -825,10 +834,11 @@ async function checkMapping() {
   const missingRequired = fields.filter((f) => f.required && !f.found).length;
   $("mapping-summary").innerHTML = missingRequired
     ? `<span class="tone-bad">${missingRequired} required column(s) missing.</span> Edit the names under <code>columns:</code>.`
-    : `<span class="tone-good">${found} of ${fields.length} mapped columns found.</span>`;
+    : `<span class="tone-good">${found} of ${fields.length} fields matched` +
+      (fields.some((f) => f.auto) ? `, ${fields.filter((f) => f.auto).length} detected automatically` : "") + ".</span>";
   $("mapping-list").innerHTML = fields.map((f) => {
     const state = f.found ? "ok" : f.required ? "missing" : "optional";
-    const mark = f.found ? "found" : f.required ? "missing" : "not in file";
+    const mark = f.found ? (f.auto ? "auto" : "found") : f.required ? "missing" : "not in file";
     return `<li><span>${esc(f.field)}${f.required ? " *" : ""}</span><code title="${esc(f.column)}">${esc(f.column)}</code><span class="${state}">${mark}</span></li>`;
   }).join("");
 }

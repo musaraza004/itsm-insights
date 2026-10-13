@@ -6,15 +6,30 @@ written down rather than buried in code.
 
 ## Input normalisation
 
-- Columns are mapped to canonical fields with the `columns:` section of the config. Required:
-  `id`, `created`, `priority`. Optional: `first_response`, `resolved`, `status`, `category`,
-  `assignee_group`.
-- Timestamps with a UTC offset are used as given. Timestamps without one are interpreted in the
-  configured `timezone`, then everything is converted to UTC. Ambiguous local times (the repeated
-  hour when clocks go back) become missing rather than guessed; non-existent times (the skipped
-  hour when clocks go forward) shift forward.
-- Rows with an empty id or creation time, unparseable dates, or duplicate ids stop the load with
-  an error naming the rows. Bad data is surfaced, not silently dropped.
+- **Columns.** Each canonical field (`id`, `created`, `priority`, `first_response`, `resolved`,
+  `status`, `category`, `assignee_group`) uses the column named under `columns:` when it exists.
+  Otherwise the loader tries the names common service desks use, comparing case-, space- and
+  punctuation-insensitively and unwrapping Jira's `Custom field (...)`. Empty columns are skipped,
+  a column is never used for two fields, and every automatic choice is reported.
+- **Priorities.** A value matching an SLA key is used as-is. Otherwise `priority_aliases` is
+  checked, then the key ignoring case, then a `P<n>` code inside the text (`High (P3)` -> `P3`).
+  Anything else is kept and reported as having no SLA. The original wording is kept for display.
+- **Dates.** Timestamps with a UTC offset are used as given; others are interpreted in the
+  configured `timezone`, then everything is converted to UTC. For numeric dates the order is
+  decided from the data: a first number above 12 means day/month, a second above 12 means
+  month/day. If neither appears the loader assumes month/day and says so; set `date_order` to
+  override. Ambiguous local times (the repeated hour when clocks go back) become missing rather
+  than guessed; non-existent times shift forward.
+- **Strict where a guess would corrupt results.** Empty ids, empty or unparseable creation times,
+  and duplicate ids stop the load with an error naming the rows.
+- **Lenient where a column is optional.** Unparseable values in optional date columns become
+  empty with a note. A column where most values are not dates, or that holds bare times (what a
+  spreadsheet app leaves after reformatting a date column), is ignored with a note rather than
+  misread. Spreadsheet error values (`#VALUE!`, `#N/A`, ...) count as empty.
+- **Fields with no data.** If the export has no usable first-response times at all, the response
+  SLA is reported as unmeasured instead of being approximated from resolution times.
+- **Consistency checks.** Tickets whose status looks done (`resolved_statuses`, prefix match) but
+  have no resolved time, or the reverse, are counted and reported.
 
 ## Analysis time ("as of")
 

@@ -97,26 +97,41 @@ Useful options:
 
 ## Using your own export
 
-Copy [`examples/sla.yaml`](examples/sla.yaml) and change the column names on the right to match
-your export's headers. Only `id`, `created` and `priority` are required.
+Most exports work as they are. When a configured column is missing, ITSM Insights looks for the
+names Jira, ServiceNow, Zendesk, Freshdesk and ClickUp use (`Issue key`, `Created`, `Resolved`,
+`opened_at`, `Solved at`, `Custom field (Customer Request Type)` and more), skips columns that are
+empty, and tells you which ones it picked. It also:
+
+- maps priorities like `High (P3)` or `P2 - High` to `P3` and `P2` automatically
+- works out whether dates are day/month or month/day from the data
+- reads only the columns it needs, so 700-column Jira exports load in seconds
+- ignores date columns a spreadsheet app has damaged (times without dates, `#VALUE!`) instead
+  of misreading them, and says so
+- flags tickets whose status and resolved time disagree
+
+To pin things down, copy [`examples/sla.yaml`](examples/sla.yaml) and edit it:
 
 ```yaml
 timezone: Europe/London            # for timestamps without a UTC offset, and the heatmap
 
-columns:
+columns:                           # only needed when detection picks the wrong column
   id: Issue key
   created: Created
-  priority: Priority
-  first_response: First Response Date
   resolved: Resolved
 
-sla:
+sla:                               # your real targets, one per priority
   P1: {response: 15m, resolve: 4h, calendar: 24x7}
   P2: {response: 1h,  resolve: 8h, calendar: 24x7}
   P3: {response: 4h,  resolve: 3d, calendar: 24x7}
+
+priority_aliases: {Urgent: P1}     # names without a P-code
+date_order: auto                   # or dmy / mdy for numeric dates like 05/08/2026
 ```
 
 Durations accept `s`, `m`, `h`, `d` and `w`, and can be combined (`1h30m`).
+
+> **Tip:** export straight from your service desk and upload that file. Opening an export in
+> Excel and saving it again can strip seconds and turn date columns into bare times.
 
 ## Metrics
 
