@@ -1,0 +1,23 @@
+# Example config for itsm-insights. Matches the columns written by `generate-demo`.
+
+timezone: Europe/London
+
+columns:
+  id: ticket_id
+  created: created_at
+  priority: priority
+  status: status
+  category: category
+  assignee_group: assignee_group
+  first_response: first_response_at
+  resolved: resolved_at
+
+sla:
+  P1: {response: 15m, resolve: 4h, calendar: 24x7}
+  P2: {response: 1h,  resolve: 8h, calendar: 24x7}
+  P3: {response: 4h,  resolve: 3d, calendar: 24x7}
+  P4: {response: 8h,  resolve: 5d, calendar: 24x7}
+
+# Used from v0.2 (clock pausing) and v0.3 (repeat incidents).
+# pause_statuses: ["Waiting for customer", "Pending vendor"]
+repeat_window_days: 14
