@@ -1,46 +1,107 @@
-# ITSM Insights
+<div align="center">
 
-**Turn a ticket export into SLA, MTTR and service-desk metrics with one command, on your own machine.**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/itsm-insights-logo-dark.png">
+  <img src="docs/images/itsm-insights-logo-light.png" alt="ITSM Insights" width="360">
+</picture>
+
+### Service-desk SLA analytics from a ticket export, in one command or one click
 
 [![CI](https://github.com/musaraza004/itsm-insights/actions/workflows/ci.yml/badge.svg)](https://github.com/musaraza004/itsm-insights/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![Web app](https://github.com/musaraza004/itsm-insights/actions/workflows/pages.yml/badge.svg)](https://musaraza004.github.io/itsm-insights/)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab)
+![Coverage 97%](https://img.shields.io/badge/coverage-97%25-brightgreen)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Try it in your browser: [musaraza004.github.io/itsm-insights](https://musaraza004.github.io/itsm-insights/)**
-(no install; your data never leaves your device)
+**[Open the web app](https://musaraza004.github.io/itsm-insights/)** ·
+[Quick start](#quick-start) ·
+[Metrics](#metrics) ·
+[Methodology](docs/METHODOLOGY.md) ·
+[Roadmap](#roadmap)
 
-> **Status: v0.1.** Generic CSV/JSON loader, SLA breach rates on a 24x7 clock, and time to resolve
-> (mean, median, P90). Business-hours calendars and clock pausing are next; see the [roadmap](#roadmap).
+</div>
 
-## Why this exists
+<br>
 
-Small and mid-size IT teams usually have their tickets in Jira, ClickUp, Freshdesk or a
-spreadsheet, but no clear view of how they are performing. Enterprise tools are expensive or
-take weeks to set up, so a manager ends up counting tickets in Excel.
+<p align="center">
+  <a href="https://musaraza004.github.io/itsm-insights/?demo=1">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/images/web-app-dark.png">
+      <img src="docs/images/web-app-light.png" alt="ITSM Insights web app showing SLA breach rates, time to resolve by priority, a peak-hour heatmap and backlog ageing for 5,000 demo tickets" width="860">
+    </picture>
+  </a>
+</p>
 
-`itsm-insights` takes the CSV you can already export and answers, in one command:
+## Overview
 
-- Are we meeting our SLAs, and for which priorities do we fail?
-- How long do tickets really take to resolve, and how bad is the long tail?
+Most small and mid-size IT teams keep their tickets in Jira, ClickUp, Freshdesk or a
+spreadsheet, but have no clear view of how they are performing. Enterprise reporting is
+expensive or takes weeks to set up, so someone ends up counting tickets in Excel.
+
+**ITSM Insights** reads the CSV or JSON export you already have and answers the questions
+service managers are asked every week:
+
+- **Are we meeting our SLAs**, and for which priorities do we fail?
+- **How long do tickets really take** to resolve, and how bad is the long tail?
+- **When does work arrive**, so shifts can be staffed to match?
+- **How old is the backlog**, and what is going stale?
+
+It ships as a Python package with a CLI, and as a [web app](https://musaraza004.github.io/itsm-insights/)
+that runs the same package in your browser.
+
+## Highlights
+
+| | |
+| --- | --- |
+| **Private by design** | Everything runs locally. The web app executes Python in the browser via WebAssembly; tickets are never uploaded. No telemetry. |
+| **Works with any export** | A small YAML file maps your column names. Clear errors name the missing column, the row and the bad value. |
+| **Honest metrics** | Pending tickets are not counted as met, P90 sits next to the mean, and every exclusion is reported. Definitions are in [METHODOLOGY.md](docs/METHODOLOGY.md). |
+| **Verified against known answers** | A synthetic data generator plants each ticket's SLA outcome, and the tests require the metrics to recover every one exactly. |
 
 ## Quick start
 
+**In the browser** (nothing to install): open
+[musaraza004.github.io/itsm-insights](https://musaraza004.github.io/itsm-insights/) and drop in an
+export, or click *Try with 5,000 demo tickets*.
+
+**From the command line:**
+
 ```bash
-pip install -e .
+pip install git+https://github.com/musaraza004/itsm-insights.git
 itsm-insights generate-demo --tickets 5000 --out demo.csv
-itsm-insights analyze demo.csv --config examples/sla.yaml
+itsm-insights analyze demo.csv
 ```
 
-Add `--json` for machine-readable output, or `--as-of now` to measure open tickets against the
-current time instead of the export's latest timestamp.
+Example output (abridged; the demo data depends on the date it is generated):
+
+```text
+Response SLA breached:   9.3% (462 of 4,983)
+Resolution SLA breached: 9.0% (437 of 4,858)
+
+SLA and time to resolve by priority
+| Priority | Tickets | Response | Resolve | Open,  |  Mean | Median |     P90 |
+|          |         |   breach |  breach | in SLA |   TTR |    TTR |     TTR |
+|----------+---------+----------+---------+--------+-------+--------+---------|
+| P1       |     148 |     7.4% |   13.5% |      0 | 3h 4m |  2h 9m |  6h 25m |
+| P2       |     589 |    11.0% |   18.1% |      4 | 7h 0m |  5h 2m | 17h 14m |
+| ...      |         |          |         |        |       |        |         |
+```
+
+Useful options:
+
+| Option | Purpose |
+| --- | --- |
+| `--config sla.yaml` | Your SLA targets and column mapping (see below) |
+| `--json` | Machine-readable output, including the heatmap and backlog data |
+| `--as-of now` | Measure open tickets against the current time instead of the export's latest timestamp |
 
 ## Using your own export
 
-Map your export's column headers in a YAML config. Only `id`, `created` and `priority` are
-required; anything else you leave out is treated as empty.
+Copy [`examples/sla.yaml`](examples/sla.yaml) and change the column names on the right to match
+your export's headers. Only `id`, `created` and `priority` are required.
 
 ```yaml
-timezone: Europe/London          # used for timestamps without a UTC offset
+timezone: Europe/London            # for timestamps without a UTC offset, and the heatmap
 
 columns:
   id: Issue key
@@ -48,8 +109,6 @@ columns:
   priority: Priority
   first_response: First Response Date
   resolved: Resolved
-  status: Status
-  category: Component
 
 sla:
   P1: {response: 15m, resolve: 4h, calendar: 24x7}
@@ -57,67 +116,100 @@ sla:
   P3: {response: 4h,  resolve: 3d, calendar: 24x7}
 ```
 
-Durations accept `s`, `m`, `h`, `d` and `w`, and can be combined (`1h30m`). If a column is missing
-or a date will not parse, the error names the column, the row number and the offending value.
+Durations accept `s`, `m`, `h`, `d` and `w`, and can be combined (`1h30m`).
 
 ## Metrics
 
 | Metric | Definition |
 | --- | --- |
-| **Response SLA breach rate** | Share of tickets whose first response came after the target for their priority. A ticket resolved with no recorded response counts as responded to at resolution. |
+| **Response SLA breach rate** | Share of tickets whose first response came after the target for their priority. A ticket resolved with no recorded response counts as answered at resolution. |
 | **Resolution SLA breach rate** | Share of tickets resolved after the target for their priority. |
-| **Time to resolve (MTTR)** | Created → resolved for resolved tickets, as mean, median and P90 (linear interpolation). The median and P90 are the honest numbers; a few stale tickets inflate the mean. |
+| **Time to resolve** | Created to resolved, as mean, median and P90. The median and P90 are the honest numbers; a few stale tickets inflate the mean. |
+| **Peak-hour load** | Tickets created by weekday and hour in local time, shown as a 7 × 24 heatmap. |
+| **Backlog ageing** | Open tickets by age: under 1 day, 1 to 3 days, 3 to 7 days, over 7 days. |
 
-How outcomes are counted:
+How SLA outcomes are counted:
 
-- **Breach rate = breached / (met + breached).** Open tickets whose clock has not yet reached the
-  target are *pending* and left out, because counting them as met would flatter the result.
-- An open ticket that has already passed its target counts as **breached**, measured against the
-  analysis time (the latest timestamp in the export unless you pass `--as-of`).
+- **Breach rate = breached / (met + breached).** Open tickets still inside their target are
+  *pending* and excluded, because counting them as met would flatter the result.
+- An open ticket already past its target counts as **breached** at the analysis time.
 - Exactly on target counts as **met**.
-- Tickets whose priority has no SLA in the config, or whose timestamps run backwards, are excluded
-  and reported as warnings rather than silently dropped.
+- Tickets with no SLA for their priority, or with timestamps out of order, are excluded and
+  reported as warnings, never dropped silently.
 
-Full definitions and the reasoning behind each choice are in
-[docs/METHODOLOGY.md](docs/METHODOLOGY.md).
+## How it is validated
 
-## Tested against known answers
+Real tickets are never used. `itsm-insights generate-demo` builds a synthetic service desk:
+arrivals follow office hours with a Monday-morning spike, categories mirror a typical L1 queue
+(password resets, VPN, printers), and recent tickets are still open at export time.
 
-Real tickets are never used. `generate-demo` builds a synthetic service desk: arrivals follow
-office hours with a Monday-morning spike, categories mirror a typical L1 queue (password resets,
-VPN, printers…), and recent tickets are still open at export time.
+The generator decides each ticket's SLA outcome *before* it creates the timestamps, so it knows
+the right answer. The test suite checks that the metrics reproduce every planted outcome exactly,
+alongside boundary tests (exactly on target, one second over, open tickets, mixed time zones).
+Run `generate-demo --truth` to see the planted outcomes yourself.
 
-The generator decides each ticket's SLA outcome *before* it invents the timestamps, so it knows
-the true answer. The test suite checks that the metrics recover exactly the breaches that were
-planted. Run `generate-demo --truth` to see the planted outcome columns yourself.
+## Project structure
 
-## Privacy
-
-Everything runs locally. No ticket data leaves your machine, and there is no telemetry.
-
-## Development
-
-```bash
-python -m venv .venv
-.venv/bin/pip install -e ".[dev]"     # Windows: .venv\Scripts\pip
-pytest
-ruff check . && ruff format --check .
+```text
+src/itsm_insights/
+├── cli.py              # analyze and generate-demo commands
+├── config.py           # YAML config: SLA policies, column mapping (Pydantic)
+├── loaders/generic.py  # CSV/JSON loading, timestamp normalisation, validation
+├── metrics/            # sla.py, mttr.py, load.py, backlog.py
+├── analysis.py         # runs every metric, collects warnings
+└── generator.py        # synthetic tickets with planted outcomes
+web/                    # the browser app (Pyodide + anime.js), deployed to GitHub Pages
+docs/METHODOLOGY.md     # exact metric definitions and the reasoning behind them
+tests/                  # pytest suite
 ```
 
 ## Roadmap
 
-- **v0.1** ✅ Generic CSV/JSON loader, 24x7 SLA breach, MTTR, synthetic generator, CLI summary
-- **v0.2** Business-hours calendars (working hours, weekends, holidays, time zones), SLA clock
-  pausing from status history, FCR, reopen and escalation rates
-- **v0.3** Repeat incident detection, peak-hour heatmap, Jira and ClickUp loaders
-- **v0.4** Dashboard, self-contained HTML report, Docker
-- **v1.0** Documentation site, PyPI release, hosted demo
+- [x] **v0.1** CSV/JSON loader, SLA breach rates (24x7), time to resolve, synthetic generator,
+  CLI, browser app, peak-hour heatmap, backlog ageing
+- [ ] **v0.2** Business-hours calendars (working hours, weekends, holidays, time zones), SLA clock
+  pausing from status history, first-contact resolution, reopen and escalation rates
+  ([design](docs/superpowers/specs/2026-10-13-v0.2-design.md))
+- [ ] **v0.3** Repeat incident detection, Jira and ClickUp loaders
+- [ ] **v0.4** Self-contained HTML report, Docker image
+- [ ] **v1.0** Documentation site, PyPI release
+
+## Development
+
+```bash
+git clone https://github.com/musaraza004/itsm-insights.git
+cd itsm-insights
+python -m venv .venv
+.venv/bin/pip install -e ".[dev]"     # Windows: .venv\Scripts\pip install -e ".[dev]"
+pytest
+ruff check . && ruff format --check .
+```
+
+To work on the web app locally, build the wheel next to the page and serve the folder:
+
+```bash
+mkdir -p _site && cp -r web/. _site/ && pip wheel . --no-deps -w _site
+echo '{"wheel": "itsm_insights-0.1.0-py3-none-any.whl", "version": "0.1.0"}' > _site/manifest.json
+python -m http.server 8765 --directory _site
+```
 
 ## Contributing
 
-Issues and pull requests are welcome. Please add a test for any change to the time logic; that is
-where the bugs hide.
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md); in short, never commit
+real ticket data, and add a test with a hand-checked expected value for any change to the time
+logic.
 
 ## License
 
-[MIT](LICENSE)
+Released under the [MIT License](LICENSE).
+
+<br>
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/saan-technologies-logo-dark.png">
+    <img src="docs/images/saan-technologies-logo-light.png" alt="SAAN Technologies" width="150">
+  </picture>
+  <br>
+  <sub>Built by SAAN Technologies</sub>
+</div>
