@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>ITSM Insights</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-tertiary-fixed":"#2a1700","on-primary-fixed-variant":"#93c5fd","on-error-container":"#fca5a5","surface-container-lowest":"#161B26","surface-container":"#1E2536","surface-bright":"#161B26","primary-container":"#1D4ED8","tertiary-container":"#D97706","on-tertiary-container":"#FEF3C7","secondary-fixed-dim":"#6bd8cb","on-surface":"#F3F4F6","surface-container-highest":"#2B3548","on-surface-variant":"#94A3B8","secondary-container":"#064E3B","secondary-fixed":"#89f5e7","inverse-on-surface":"#0B0F19","on-error":"#ffffff","tertiary":"#F59E0B","inverse-surface":"#F3F4F6","surface-container-high":"#232B3D","on-secondary-fixed-variant":"#A7F3D0","error-container":"#7F1D1D","surface-variant":"#1E2536","on-primary":"#ffffff","on-tertiary":"#ffffff","tertiary-fixed-dim":"#FBBF24","primary":"#3B82F6","outline":"#475569","primary-fixed":"#1E3A8A","surface-container-low":"#131823","error":"#EF4444","on-primary-container":"#DBEAFE","inverse-primary":"#1D4ED8","on-secondary-container":"#6EE7B7","surface-dim":"#0B0F19","tertiary-fixed":"#78350F","primary-fixed-dim":"#1E40AF","secondary":"#10B981","on-secondary":"#ffffff","surface-tint":"#3B82F6","surface":"#0B0F19","on-secondary-fixed":"#00201d","on-primary-fixed":"#EFF6FF","on-background":"#F3F4F6","background":"#0B0F19","outline-variant":"#262E3D","on-tertiary-fixed-variant":"#FDE68A"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem","space-xl":"2rem","gutter-desktop":"1.5rem","gutter":"1rem","space-lg":"1.25rem","margin":"1rem","margin-desktop":"2rem"},fontFamily:{"headline-xl":["Inter"],"headline-md":["Inter"],"body-lg":["Inter"],"label-sm":["Inter"],"code-sm":["JetBrains Mono"],"headline-xl-mobile":["Inter"],"headline-lg":["Inter"],"code-md":["JetBrains Mono"],"metric-val":["JetBrains Mono"],"headline-sm":["Inter"],"label-md":["Inter"],"body-sm":["Inter"],"body-md":["Inter"]},fontSize:{"headline-xl":["32px",{lineHeight:"40px",letterSpacing:"-0.02em",fontWeight:"600"}],"headline-md":["18px",{lineHeight:"26px",letterSpacing:"-0.01em",fontWeight:"600"}],"body-lg":["16px",{lineHeight:"24px",fontWeight:"400"}],"label-sm":["11px",{lineHeight:"16px",letterSpacing:"0.04em",fontWeight:"600"}],"code-sm":["11px",{lineHeight:"16px",fontWeight:"400"}],"headline-xl-mobile":["26px",{lineHeight:"34px",letterSpacing:"-0.015em",fontWeight:"600"}],"headline-lg":["24px",{lineHeight:"32px",letterSpacing:"-0.015em",fontWeight:"600"}],"code-md":["13px",{lineHeight:"20px",fontWeight:"400"}],"metric-val":["28px",{lineHeight:"32px",letterSpacing:"-0.02em",fontWeight:"500"}],"headline-sm":["15px",{lineHeight:"22px",fontWeight:"600"}],"label-md":["13px",{lineHeight:"18px",fontWeight:"500"}],"body-sm":["12px",{lineHeight:"18px",fontWeight:"400"}],"body-md":["14px",{lineHeight:"20px",fontWeight:"400"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 bg-[#161B26]/90 backdrop-blur-md border-b border-outline-variant"><div class="h-20 w-full max-w-7xl mx-auto px-margin lg:px-margin-desktop flex items-center justify-between gap-4"><div class="flex items-center gap-space-lg min-w-0"><div class="flex items-center gap-space-sm shrink-0"><div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-white"><span class="material-symbols-outlined text-[18px]">query_stats</span></div><div class="flex flex-col"><div class="flex items-center gap-space-xs"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight">ITSM Insights</span><span class="px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant text-primary font-code-sm text-code-sm">v1.2</span></div><span class="hidden xl:inline text-on-surface-variant font-body-sm text-body-sm truncate max-w-md">SLA breach rates and time to resolve from a ticket export, in one click</span></div></div><div class="hidden md:flex items-center gap-1.5 px-space-md py-1 rounded-full bg-surface-container-low border border-outline-variant text-on-surface-variant font-body-sm text-body-sm shrink-0"><span class="material-symbols-outlined text-secondary text-[16px]">verified_user</span><span>Your data stays on your device. Local browser execution only.</span></div></div><div class="flex items-center gap-space-md shrink-0"><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-surface-container text-primary font-label-md"><a aria-current="page" class="px-space-md py-1.5 rounded transition-colors bg-primary/20 text-primary border border-primary/30 font-label-md" data-path="overview" href="#">Overview</a><a class="px-space-md py-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md" data-path="sla-benchmark" href="#">Benchmarks</a><a class="px-space-md py-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md" data-path="documentation" href="#">Docs</a></nav><div class="h-4 w-px bg-outline-variant hidden sm:block"></div><div class="flex items-center gap-space-xs"><button aria-label="Toggle theme (Dark Mode Active)" class="p-1.5 rounded text-amber-400 hover:text-amber-300 hover:bg-surface-container transition-colors" title="Dark theme active" type="button"><span class="material-symbols-outlined text-[20px]">light_mode</span></button><a aria-label="Source code on GitHub" class="p-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" href="https://github.com" rel="noreferrer" target="_blank"><span class="material-symbols-outlined text-[20px]">code</span></a></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full flex-1 pt-20 bg-surface"><div class="w-full max-w-7xl mx-auto px-margin lg:px-margin-desktop py-space-lg"><div class="flex flex-col w-full">
+<!-- Privacy & Context Announcement Bar -->
+<section class="mb-space-lg">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-md flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md shadow-sm">
+<div class="flex items-center gap-space-md">
+<div class="w-9 h-9 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[20px]">shield</span>
+</div>
+<div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-headline-sm text-headline-sm text-on-surface">Client-Side Analytics Sandbox</span>
+<span class="px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800 text-emerald-400 font-code-sm text-code-sm font-medium">Zero Cloud Egress</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Your data stays on your device. The analysis runs in your browser. Nothing is uploaded or transmitted to any server.
+          </p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end md:self-auto">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container border border-outline-variant text-on-surface font-code-sm text-code-sm shadow-sm">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          WASM Engine 2.1 Ready
+        </span>
+</div>
+</div>
+</section>
+<!-- Upload and Configuration Deck -->
+<section class="mb-space-xl">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-space-lg flex flex-col gap-space-lg">
+<!-- Top Actions Bar -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-md pb-space-xs">
+<div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary font-semibold">Step 1 • Dataset Ingestion</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Choose Tickets Export</h2>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-high border border-outline-variant hover:bg-surface-container-highest text-on-surface font-label-md text-label-md transition-colors" id="btn-load-demo" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">cloud_done</span>
+<span>Try with 5,000 demo tickets</span>
+<span class="ml-1 px-1.5 py-0.2 rounded bg-primary text-on-primary font-code-sm text-code-sm">Loaded</span>
+</button>
+<a class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-on-surface-variant hover:text-primary font-label-md text-label-md transition-colors" href="#download-sample">
+<span class="material-symbols-outlined text-[16px]">file_download</span>
+<span>Download demo CSV</span>
+</a>
+</div>
+</div>
+<!-- Drag & Drop Interactive Zone -->
+<div class="relative group rounded-xl bg-surface-container-low/80 border border-dashed border-outline-variant hover:border-primary/50 hover:bg-surface-container-high/40 transition-colors p-space-xl flex flex-col items-center justify-center text-center cursor-pointer">
+<input accept=".csv, .json" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" id="ticket-file-input" type="file"/>
+<div class="w-12 h-12 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary mb-space-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[24px]">upload_file</span>
+</div>
+<p class="font-headline-sm text-headline-sm text-on-surface mb-0.5">
+          Drop your ticket export CSV or JSON here, or <span class="text-primary underline underline-offset-4 decoration-primary/40">browse files</span>
+</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant max-w-md">
+          Supports ServiceNow, Jira Service Management, Zendesk, Freshservice exports. UTF-8 encoded files up to 250MB processed locally.
+        </p>
+</div>
+<!-- Collapsible SLA Policy & Column Mapping -->
+<details class="group bg-surface-container-low border border-outline-variant rounded-lg transition-all" id="sla-policy-accordion" open="">
+<summary class="flex items-center justify-between px-space-md py-space-sm cursor-pointer list-none select-none rounded-lg text-on-surface hover:text-primary">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant group-open:text-primary group-open:rotate-90 transition-transform">chevron_right</span>
+<span class="font-label-md text-label-md font-semibold">SLA Policy &amp; Column Mapping Configuration</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">targets.yaml</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant group-open:hidden">Show mapping rules</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant hidden group-open:inline">Hide mapping rules</span>
+</summary>
+<div class="p-space-md pt-0 grid grid-cols-1 lg:grid-cols-12 gap-space-md">
+<div class="lg:col-span-8 bg-[#0D1117] border border-outline-variant rounded p-space-md relative font-code-sm text-code-sm text-on-surface overflow-x-auto shadow-inner">
+<div class="absolute top-2 right-2 flex items-center gap-1">
+<button aria-label="Copy configuration" class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+<pre class="leading-relaxed select-all"><code><span class="text-blue-400 font-semibold">sla_targets</span>:
+  <span class="text-amber-400 font-semibold">P1</span>: { <span class="text-on-surface-variant">response_hours</span>: 1, <span class="text-on-surface-variant">resolve_hours</span>: 4 }
+  <span class="text-amber-400 font-semibold">P2</span>: { <span class="text-on-surface-variant">response_hours</span>: 2, <span class="text-on-surface-variant">resolve_hours</span>: 8 }
+  <span class="text-amber-400 font-semibold">P3</span>: { <span class="text-on-surface-variant">response_hours</span>: 8, <span class="text-on-surface-variant">resolve_hours</span>: 24 }
+  <span class="text-amber-400 font-semibold">P4</span>: { <span class="text-on-surface-variant">response_hours</span>: 24, <span class="text-on-surface-variant">resolve_hours</span>: 72 }
+
+<span class="text-blue-400 font-semibold">column_mapping</span>:
+  <span class="text-emerald-400 font-semibold">id</span>: <span class="text-emerald-300">"Ticket ID"</span>
+  <span class="text-emerald-400 font-semibold">priority</span>: <span class="text-emerald-300">"Severity"</span>
+  <span class="text-emerald-400 font-semibold">created</span>: <span class="text-emerald-300">"Created Date"</span>
+  <span class="text-emerald-400 font-semibold">first_response</span>: <span class="text-emerald-300">"First Response Date"</span>
+  <span class="text-emerald-400 font-semibold">resolved</span>: <span class="text-emerald-300">"Resolved Date"</span></code></pre>
+</div>
+<div class="lg:col-span-4 flex flex-col justify-between bg-surface-container border border-outline-variant p-space-md rounded">
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider block mb-1">Mapping Health</span>
+<div class="flex items-center gap-2 mb-space-sm">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span class="font-headline-sm text-headline-sm text-on-surface">5 of 5 columns auto-matched</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Timestamps detected in ISO 8601 (<code class="font-code-sm text-code-sm text-on-surface">UTC+00:00</code>). SLA calendar calculated on 24x7 operational window.
+              </p>
+</div>
+<div class="pt-space-sm flex items-center justify-between border-t border-outline-variant/60">
+<span class="font-code-sm text-code-sm text-on-surface-variant">Parser: WebWorker v1.2</span>
+<button class="text-primary font-label-md text-label-md hover:underline" type="button">Edit mapping...</button>
+</div>
+</div>
+</div>
+</details>
+<!-- Analysis Status Bar -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm pt-space-xs">
+<div class="flex items-center gap-space-sm flex-wrap">
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container border border-outline-variant text-on-surface font-code-sm text-code-sm">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="font-medium text-emerald-400">Ready</span>
+<span class="text-on-surface-variant">(analysis completed in 142ms)</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant hidden md:inline">•</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Dataset: <code class="font-code-sm text-code-sm text-on-surface">prod_incidents_2024_demo.csv</code></span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant text-on-surface-variant font-code-sm text-code-sm">Heap: 18.4 MB</span>
+<span class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant text-on-surface-variant font-code-sm text-code-sm">5,000 Rows</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Results Section -->
+<section class="flex flex-col gap-space-lg mb-space-xl">
+<!-- Results Header -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-md">
+<div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-wider font-semibold">Step 2 • Diagnostic Synthesis</span>
+<span class="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-400 font-label-sm text-label-sm font-semibold">Live Snapshot</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">Analysis Results: 5,000 tickets analyzed</h1>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container-high border border-outline-variant hover:bg-surface-container-highest text-on-surface font-label-md text-label-md transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">share</span>
+<span>Copy URL</span>
+</button>
+<button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-on-primary font-label-md text-label-md transition-colors shadow-sm" id="btn-export-results-header" type="button">
+<span class="material-symbols-outlined text-[18px]">download</span>
+<span>Download results (JSON)</span>
+</button>
+</div>
+</div>
+<!-- 4 KPI Tiles Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- KPI 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-md text-label-md text-on-surface-variant">Total Ingested Tickets</span>
+<span class="material-symbols-outlined text-primary text-[20px]">confirmation_number</span>
+</div>
+<div>
+<div class="font-metric-val text-metric-val text-on-surface mb-1">5,000</div>
+<div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-medium text-on-surface">4,853</span> resolved
+            <span class="text-outline">•</span>
+<span class="font-medium text-primary">147</span> open
+          </div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between text-on-surface-variant font-code-sm text-code-sm border-t border-outline-variant/60">
+<span>Resolution coverage</span>
+<span class="font-semibold text-on-surface">97.1%</span>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-md text-label-md text-on-surface-variant">Response SLA Breached</span>
+<span class="px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-800 text-amber-400 font-code-sm text-code-sm font-semibold">Warning</span>
+</div>
+<div>
+<div class="font-metric-val text-metric-val text-amber-500 mb-1">9.3%</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-semibold text-on-surface">461</span> of 4,976 evaluated
+          </div>
+</div>
+<div class="mt-space-md pt-space-xs">
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 9.3%;"></div>
+</div>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-md text-label-md text-on-surface-variant">Resolution SLA Breached</span>
+<span class="px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-800 text-amber-400 font-code-sm text-code-sm font-semibold">Warning</span>
+</div>
+<div>
+<div class="font-metric-val text-metric-val text-amber-500 mb-1">9.1%</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-semibold text-on-surface">441</span> of 4,873 evaluated
+          </div>
+</div>
+<div class="mt-space-md pt-space-xs">
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 9.1%;"></div>
+</div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-md text-label-md text-on-surface-variant">Median Time to Resolve</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant text-on-surface font-code-sm text-code-sm">Baseline</span>
+</div>
+<div>
+<div class="font-metric-val text-metric-val text-on-surface mb-1">1d 16h</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+            P90 index: <span class="font-semibold text-on-surface">4d 4h</span>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between text-on-surface-variant font-code-sm text-code-sm border-t border-outline-variant/60">
+<span>Variance factor</span>
+<span class="text-on-surface font-semibold">2.6x to P90</span>
+</div>
+</div>
+</div>
+<!-- Priority Breakdown Table Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="px-space-lg py-space-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm bg-surface-container-lowest border-b border-outline-variant">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Priority &amp; SLA Degradation Breakdown</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Tier-by-tier comparative distribution across standard response and resolution contracts.</p>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="px-2 py-1 rounded bg-surface-container border border-outline-variant text-on-surface-variant font-code-sm text-code-sm">Formula: Breached / (Met + Breached)</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider border-b border-outline-variant">
+<th class="py-3 px-space-lg">Priority</th>
+<th class="py-3 px-space-md text-right">Tickets</th>
+<th class="py-3 px-space-md text-right min-w-[140px]">Response Breach</th>
+<th class="py-3 px-space-md text-right min-w-[140px]">Resolve Breach</th>
+<th class="py-3 px-space-md text-right">Open in SLA</th>
+<th class="py-3 px-space-md text-right">Mean TTR</th>
+<th class="py-3 px-space-md text-right">Median TTR</th>
+<th class="py-3 px-space-lg text-right">P90 TTR</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- P1 Row -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-3 px-space-lg font-headline-sm text-headline-sm text-on-surface flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-error"></span>
+<span class="font-semibold text-on-surface">P1</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm font-normal">(Critical)</span>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">184</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-error h-full rounded-full" style="width: 14.7%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-error">14.7%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-error h-full rounded-full" style="width: 16.3%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-error">16.3%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">92.3%</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface-variant">3h 12m</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md font-semibold text-on-surface">2h 45m</td>
+<td class="py-3 px-space-lg text-right font-code-md text-code-md text-on-surface-variant">5h 10m</td>
+</tr>
+<!-- P2 Row -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-3 px-space-lg font-headline-sm text-headline-sm text-on-surface flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span class="font-semibold text-on-surface">P2</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm font-normal">(High)</span>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">612</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 11.2%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-amber-400">11.2%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 11.8%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-amber-400">11.8%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">95.1%</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface-variant">7h 40m</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md font-semibold text-on-surface">6h 15m</td>
+<td class="py-3 px-space-lg text-right font-code-md text-code-md text-on-surface-variant">11h 30m</td>
+</tr>
+<!-- P3 Row -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-3 px-space-lg font-headline-sm text-headline-sm text-on-surface flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+<span class="font-semibold text-on-surface">P3</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm font-normal">(Medium)</span>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">2,410</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 8.8%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-amber-400">8.8%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 8.4%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-amber-400">8.4%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">97.4%</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface-variant">22h 10m</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md font-semibold text-on-surface">18h 30m</td>
+<td class="py-3 px-space-lg text-right font-code-md text-code-md text-on-surface-variant">1d 14h</td>
+</tr>
+<!-- P4 Row -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-3 px-space-lg font-headline-sm text-headline-sm text-on-surface flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span class="font-semibold text-on-surface">P4</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm font-normal">(Low)</span>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">1,794</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full rounded-full" style="width: 7.9%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-emerald-400">7.9%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full rounded-full" style="width: 7.6%;"></div>
+</div>
+<span class="font-code-md text-code-md font-medium text-emerald-400">7.6%</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface">98.9%</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md text-on-surface-variant">2d 18h</td>
+<td class="py-3 px-space-md text-right font-code-md text-code-md font-semibold text-on-surface">2d 04h</td>
+<td class="py-3 px-space-lg text-right font-code-md text-code-md text-on-surface-variant">4d 20m</td>
+</tr>
+<!-- Summary Total Row -->
+<tr class="bg-surface-container/80 font-semibold border-t-2 border-outline-variant">
+<td class="py-3.5 px-space-lg font-headline-sm text-headline-sm text-on-surface">
+                All (Consolidated)
+              </td>
+<td class="py-3.5 px-space-md text-right font-code-md text-code-md text-on-surface">5,000</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 9.3%;"></div>
+</div>
+<span class="font-code-md text-code-md text-amber-400">9.3%</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-2">
+<div class="w-16 bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 9.1%;"></div>
+</div>
+<span class="font-code-md text-code-md text-amber-400">9.1%</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right font-code-md text-code-md text-on-surface">97.1%</td>
+<td class="py-3.5 px-space-md text-right font-code-md text-code-md text-on-surface-variant">1d 08h</td>
+<td class="py-3.5 px-space-md text-right font-code-md text-code-md text-on-surface">1d 16h</td>
+<td class="py-3.5 px-space-lg text-right font-code-md text-code-md text-on-surface-variant">4d 04h</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Analytical Visualizations Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- Panel 1: Peak-hour Load Heatmap (Mon-Sun x 24h) -->
+<div class="lg:col-span-7 bg-surface-container-lowest border border-outline-variant rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-md">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-md text-headline-md text-on-surface">Peak-Hour Inbound Load</span>
+<span class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant font-code-sm text-code-sm text-primary font-medium">7x24 Heatmap</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Ticket distribution density plotted by creation hour (UTC)</p>
+</div>
+<div class="flex items-center gap-1.5 text-on-surface-variant font-code-sm text-code-sm">
+<span>Low</span>
+<span class="w-3 h-3 rounded-sm bg-surface-container-high border border-outline-variant"></span>
+<span class="w-3 h-3 rounded-sm bg-primary/40"></span>
+<span class="w-3 h-3 rounded-sm bg-primary"></span>
+<span class="w-3 h-3 rounded-sm bg-amber-500"></span>
+<span>Peak</span>
+</div>
+</div>
+<!-- 24h Axis Labels -->
+<div class="overflow-x-auto pb-1">
+<div class="min-w-[540px]">
+<div class="grid grid-cols-25 gap-1 text-center font-code-sm text-code-sm text-on-surface-variant mb-1">
+<span class="text-left font-label-sm text-label-sm">Day</span>
+<span>00</span><span>02</span><span>04</span><span>06</span><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span><span>20</span><span>22</span>
+</div>
+<!-- Heatmap Rows -->
+<div class="flex flex-col gap-1.5" id="heatmap-container">
+<!-- Mon -->
+<div class="flex items-center gap-1 text-on-surface">
+<span class="w-8 font-code-sm text-code-sm font-semibold text-on-surface-variant">Mon</span>
+<div class="grid grid-cols-24 gap-1 flex-1 h-5">
+<div class="rounded-sm bg-surface-container" title="Mon 00:00 - 12 tix"></div>
+<div class="rounded-sm bg-surface-container" title="Mon 01:00 - 9 tix"></div>
+<div class="rounded-sm bg-surface-container" title="Mon 02:00 - 7 tix"></div>
+<div class="rounded-sm bg-surface-container" title="Mon 03:00 - 14 tix"></div>
+<div class="rounded-sm bg-surface-container-high" title="Mon 04:00 - 19 tix"></div>
+<div class="rounded-sm bg-surface-container-highest" title="Mon 05:00 - 28 tix"></div>
+<div class="rounded-sm bg-primary/30" title="Mon 06:00 - 45 tix"></div>
+<div class="rounded-sm bg-primary/50" title="Mon 07:00 - 78 tix"></div>
+<div class="rounded-sm bg-primary/80" title="Mon 08:00 - 132 tix"></div>
+<div class="rounded-sm bg-primary text-on-primary" title="Mon 09:00 - 184 tix"></div>
+<div class="rounded-sm bg-amber-500" title="Mon 10:00 - 212 tix (Peak)"></div>
+<div class="rounded-sm bg-primary" title="Mon 11:00 - 176 tix"></div>
+<div class="rounded-sm bg-primary/70" title="Mon 12:00 - 110 tix"></div>
+<div class="rounded-sm bg-primary/80" title="Mon 13:00 - 145 tix"></div>
+<div class="rounded-sm bg-amber-500" title="Mon 14:00 - 198 tix"></div>
+<div class="rounded-sm bg-primary" title="Mon 15:00 - 162 tix"></div>
+<div class="rounded-sm bg-primary/60" title="Mon 16:00 - 89 tix"></div>
+<div class="rounded-sm bg-primary/40" title="Mon 17:00 - 54 tix"></div>
+<div class="rounded-sm bg-surface-container-highest" title="Mon 18:00 - 32 tix"></div>
+<div class="rounded-sm bg-surface-container-high" title="Mon 19:00 - 25 tix"></div>
+<div class="rounded-sm bg-surface-container" title="Mon 20:00 - 18 tix"></div>
+<div class="rounded-sm bg-surface-container" title="Mon 21:00 - 14 tix"></div>
+<div class="rounded-sm bg-surface-container" title="Mon 22:00 - 11 tix"></div>
+<div class="rounded-sm bg-surface-container" title="Mon 23:00 - 8 tix"></div>
+</div>
+</div>
+<!-- Tue -->
+<div class="flex items-center gap-1 text-on-surface">
+<span class="w-8 font-code-sm text-code-sm font-semibold text-on-surface-variant">Tue</span>
+<div class="grid grid-cols-24 gap-1 flex-1 h-5">
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-primary/30"></div>
+<div class="rounded-sm bg-primary/60"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-amber-500"></div>
+<div class="rounded-sm bg-amber-500"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary/80"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-amber-500"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary/50"></div>
+<div class="rounded-sm bg-primary/30"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+</div>
+</div>
+<!-- Wed -->
+<div class="flex items-center gap-1 text-on-surface">
+<span class="w-8 font-code-sm text-code-sm font-semibold text-on-surface-variant">Wed</span>
+<div class="grid grid-cols-24 gap-1 flex-1 h-5">
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-primary/40"></div>
+<div class="rounded-sm bg-primary/70"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-amber-500"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary/90"></div>
+<div class="rounded-sm bg-primary/70"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary/70"></div>
+<div class="rounded-sm bg-primary/40"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+</div>
+</div>
+<!-- Thu -->
+<div class="flex items-center gap-1 text-on-surface">
+<span class="w-8 font-code-sm text-code-sm font-semibold text-on-surface-variant">Thu</span>
+<div class="grid grid-cols-24 gap-1 flex-1 h-5">
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-primary/30"></div>
+<div class="rounded-sm bg-primary/60"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-amber-500"></div>
+<div class="rounded-sm bg-amber-500"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary/70"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-amber-500"></div>
+<div class="rounded-sm bg-primary/80"></div>
+<div class="rounded-sm bg-primary/40"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+</div>
+</div>
+<!-- Fri -->
+<div class="flex items-center gap-1 text-on-surface">
+<span class="w-8 font-code-sm text-code-sm font-semibold text-on-surface-variant">Fri</span>
+<div class="grid grid-cols-24 gap-1 flex-1 h-5">
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-primary/20"></div>
+<div class="rounded-sm bg-primary/50"></div>
+<div class="rounded-sm bg-primary/80"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary"></div>
+<div class="rounded-sm bg-primary/70"></div>
+<div class="rounded-sm bg-primary/50"></div>
+<div class="rounded-sm bg-primary/60"></div>
+<div class="rounded-sm bg-primary/50"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+</div>
+</div>
+<!-- Sat -->
+<div class="flex items-center gap-1 text-on-surface">
+<span class="w-8 font-code-sm text-code-sm font-semibold text-on-surface-variant">Sat</span>
+<div class="grid grid-cols-24 gap-1 flex-1 h-5">
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-primary/20"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+</div>
+</div>
+<!-- Sun -->
+<div class="flex items-center gap-1 text-on-surface">
+<span class="w-8 font-code-sm text-code-sm font-semibold text-on-surface-variant">Sun</span>
+<div class="grid grid-cols-24 gap-1 flex-1 h-5">
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-surface-container-highest"></div>
+<div class="rounded-sm bg-surface-container-high"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+<div class="rounded-sm bg-surface-container"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm border-t border-outline-variant/60">
+<span>Heaviest load observed: <strong class="text-on-surface">Tue &amp; Thu 10:00 - 14:00 UTC</strong></span>
+<span class="font-code-sm text-code-sm text-amber-400">Shift Overlap Alert Active</span>
+</div>
+</div>
+<!-- Panel 2: Backlog Ageing Bar Chart -->
+<div class="lg:col-span-5 bg-surface-container-lowest border border-outline-variant rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-md">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-md text-headline-md text-on-surface">Backlog Ageing</span>
+<span class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant font-code-sm text-code-sm text-on-surface font-medium">147 Open</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Aging buckets of currently unresolved tickets</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">timelapse</span>
+</div>
+<!-- Crisp Bar Chart Component -->
+<div class="flex flex-col gap-space-md py-space-sm">
+<!-- Bucket: 0-1d -->
+<div>
+<div class="flex justify-between items-center mb-1 font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">0 – 1 day</span>
+<div class="flex items-center gap-2">
+<span class="font-code-md text-code-md font-semibold text-on-surface">62 tickets</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">(42.2%)</span>
+</div>
+</div>
+<div class="w-full bg-surface-container h-3.5 rounded overflow-hidden">
+<div class="bg-primary h-full rounded transition-all duration-500" style="width: 42.2%;"></div>
+</div>
+</div>
+<!-- Bucket: 1-3d -->
+<div>
+<div class="flex justify-between items-center mb-1 font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">1 – 3 days</span>
+<div class="flex items-center gap-2">
+<span class="font-code-md text-code-md font-semibold text-on-surface">45 tickets</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">(30.6%)</span>
+</div>
+</div>
+<div class="w-full bg-surface-container h-3.5 rounded overflow-hidden">
+<div class="bg-primary/80 h-full rounded transition-all duration-500" style="width: 30.6%;"></div>
+</div>
+</div>
+<!-- Bucket: 3-7d -->
+<div>
+<div class="flex justify-between items-center mb-1 font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">3 – 7 days</span>
+<div class="flex items-center gap-2">
+<span class="font-code-md text-code-md font-semibold text-amber-400">28 tickets</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">(19.0%)</span>
+</div>
+</div>
+<div class="w-full bg-surface-container h-3.5 rounded overflow-hidden">
+<div class="bg-amber-500 h-full rounded transition-all duration-500" style="width: 19.0%;"></div>
+</div>
+</div>
+<!-- Bucket: 7d+ -->
+<div>
+<div class="flex justify-between items-center mb-1 font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">7+ days (Stale)</span>
+<div class="flex items-center gap-2">
+<span class="font-code-md text-code-md font-semibold text-error">12 tickets</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">(8.2%)</span>
+</div>
+</div>
+<div class="w-full bg-surface-container h-3.5 rounded overflow-hidden">
+<div class="bg-error h-full rounded transition-all duration-500" style="width: 8.2%;"></div>
+</div>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm border-t border-outline-variant/60">
+<span>Stale escalation risk: <strong class="text-error">12 tickets (&gt;7d)</strong></span>
+<button class="text-primary font-label-md text-label-md hover:underline" type="button">Isolate open queue</button>
+</div>
+</div>
+</div>
+<!-- Warnings, Statistical Guardrails & Footnotes Container -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-start gap-space-md">
+<div class="w-8 h-8 rounded-lg bg-amber-950/80 border border-amber-800 flex items-center justify-center text-amber-400 shrink-0">
+<span class="material-symbols-outlined text-[20px]">warning</span>
+</div>
+<div class="flex-1">
+<h4 class="font-headline-sm text-headline-sm text-on-surface mb-1">Data Sanity Checks &amp; Calculation Exclusions</h4>
+<ul class="list-disc list-inside space-y-1 font-body-sm text-body-sm text-on-surface-variant">
+<li>
+<span class="font-medium text-on-surface">27 tickets</span> possess <code class="font-code-sm text-code-sm text-on-surface">resolved_at</code> occurring chronologically prior to <code class="font-code-sm text-code-sm text-on-surface">created_at</code>. These anomalous records were excluded from TTR calculation.
+            </li>
+<li>
+<span class="font-medium text-on-surface">147 open tickets</span> without completion timestamp were omitted from Resolution SLA breach rate to prevent denominator skew.
+            </li>
+<li>
+              Breach rate computation formula: <code class="font-code-sm text-code-sm font-semibold text-on-surface">Breach Rate = Breached / (Met + Breached)</code>
+</li>
+</ul>
+</div>
+</div>
+<div class="pt-space-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-md border-t border-outline-variant/60">
+<div class="flex items-center gap-space-sm text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+<span>Engine checksum validated against ISO-9001 audit standards</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-on-primary font-label-md text-label-md transition-colors shadow-sm" id="btn-export-results-footer" type="button">
+<span class="material-symbols-outlined text-[18px]">download</span>
+<span>Download results (JSON)</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<script>
+  (function() {
+    // Demo payload setup
+    const demoPayload = {
+      meta: {
+        app: "ITSM Insights",
+        version: "1.2.0",
+        analyzed_at: new Date().toISOString(),
+        execution_time_ms: 142,
+        total_tickets: 5000,
+        resolved_tickets: 4853,
+        open_tickets: 147
+      },
+      kpis: {
+        response_sla_breach_rate: 0.0926,
+        resolution_sla_breach_rate: 0.0905,
+        median_ttr_hours: 40.0,
+        p90_ttr_hours: 100.0
+      },
+      breakdown: [
+        { priority: "P1", count: 184, response_breach_rate: 0.147, resolve_breach_rate: 0.163, open_in_sla_rate: 0.923, mean_ttr: "3h 12m", median_ttr: "2h 45m", p90_ttr: "5h 10m" },
+        { priority: "P2", count: 612, response_breach_rate: 0.112, resolve_breach_rate: 0.118, open_in_sla_rate: 0.951, mean_ttr: "7h 40m", median_ttr: "6h 15m", p90_ttr: "11h 30m" },
+        { priority: "P3", count: 2410, response_breach_rate: 0.088, resolve_breach_rate: 0.084, open_in_sla_rate: 0.974, mean_ttr: "22h 10m", median_ttr: "18h 30m", p90_ttr: "1d 14h" },
+        { priority: "P4", count: 1794, response_breach_rate: 0.079, resolve_breach_rate: 0.076, open_in_sla_rate: 0.989, mean_ttr: "2d 18h", median_ttr: "2d 04h", p90_ttr: "4d 20m" }
+      ],
+      backlog_ageing: {
+        "0-1d": 62,
+        "1-3d": 45,
+        "3-7d": 28,
+        "7d+": 12
+      },
+      sanity_exclusions: {
+        negative_duration_records: 27,
+        unresolved_excluded_from_sla: 147
+      }
+    };
+
+    function triggerDownload() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(demoPayload, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "itsm_sla_results_5000_tickets.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    const btnHeader = document.getElementById("btn-export-results-header");
+    const btnFooter = document.getElementById("btn-export-results-footer");
+    if (btnHeader) btnHeader.addEventListener("click", triggerDownload);
+    if (btnFooter) btnFooter.addEventListener("click", triggerDownload);
+
+    // Mock Load action feedback
+    const btnLoadDemo = document.getElementById("btn-load-demo");
+    if (btnLoadDemo) {
+      btnLoadDemo.addEventListener("click", () => {
+        const badge = btnLoadDemo.querySelector("span:last-child");
+        if (badge) {
+          badge.textContent = "Refreshed";
+          badge.classList.remove("bg-primary");
+          badge.classList.add("bg-emerald-600");
+          setTimeout(() => {
+            badge.textContent = "Loaded";
+            badge.classList.add("bg-primary");
+            badge.classList.remove("bg-emerald-600");
+          }, 1400);
+        }
+      });
+    }
+
+    // Interactive file drag state
+    const fileInput = document.getElementById("ticket-file-input");
+    if (fileInput) {
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          alert("Loaded " + e.target.files[0].name + " into local browser memory. Computing metrics...");
+        }
+      });
+    }
+  })();
+</script></div></main><footer class="w-full border-t border-outline-variant bg-surface-container-lowest py-space-lg"><div class="max-w-7xl mx-auto px-margin lg:px-margin-desktop flex flex-col sm:flex-row items-center justify-between gap-space-md text-on-surface-variant font-body-sm text-body-sm"><div class="flex items-center gap-space-md"><span class="font-code-sm text-code-sm">Open Source (MIT License)</span><span class="text-outline">•</span><span>Client-Side In-Memory Analytical Engine</span></div><div class="flex items-center gap-space-lg"><a class="flex items-center gap-1 hover:text-on-surface transition-colors font-label-sm text-label-sm" href="https://github.com" rel="noreferrer" target="_blank"><span class="material-symbols-outlined text-[16px]">terminal</span>GitHub Repository</a><span class="text-outline">•</span><span class="font-code-sm text-code-sm">Zero telemetry</span></div></div></footer></body></html>

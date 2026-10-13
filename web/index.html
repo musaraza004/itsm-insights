@@ -4,164 +4,513 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ITSM Insights</title>
-<meta name="description" content="SLA breach rates and time to resolve from a ticket CSV export. Runs entirely in your browser.">
+<meta name="description" content="SLA breach rates, time to resolve, peak-hour load and backlog ageing from a ticket export. Runs entirely in your browser; nothing is uploaded.">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  // Apply a saved theme before first paint to avoid a flash.
+  try { const t = localStorage.getItem("itsm-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <style>
   :root {
-    --bg: #f7f7f5; --surface: #ffffff; --text: #1b1b1a; --muted: #6b6b66; --line: #e3e2dd;
-    --accent: #2f5d8a; --accent-text: #ffffff; --good: #2e7d4f; --warn: #a86a00; --bad: #b3261e;
-    --bar: #d7e3ef; --code: #f0efea;
+    --canvas: #f8f9fa; --surface: #ffffff; --surface-2: #f1f5f9; --border: #e2e8f0; --rule: #f1f5f9;
+    --text: #0b1c30; --text-2: #434655; --muted: #64748b;
+    --primary: #2563eb; --primary-hover: #1d4ed8; --primary-soft: #eff4ff; --focus: #93c5fd; --on-primary: #ffffff;
+    --teal: #0d9488;
+    --good: #059669; --good-bg: #ecfdf5; --good-border: #a7f3d0; --good-fill: #10b981;
+    --warn: #b45309; --warn-bg: #fffbeb; --warn-border: #fde68a; --warn-fill: #f59e0b;
+    --bad: #dc2626; --bad-bg: #fef2f2; --bad-border: #fecaca; --bad-fill: #ef4444;
+    --code-bg: #f1f5f9; --row-hover: #f8fafc; --heat: 37 99 235; --header-bg: rgb(255 255 255 / 0.88);
+    --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.06);
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #151514; --surface: #1e1e1c; --text: #ecebe6; --muted: #a2a19a; --line: #34332f;
-      --accent: #7fb0e0; --accent-text: #0e1a26; --good: #6fcf97; --warn: #e3b25a; --bad: #f2867d;
-      --bar: #2b3a4a; --code: #262624;
+      --canvas: #0d1117; --surface: #161b22; --surface-2: #21262d; --border: #30363d; --rule: #21262d;
+      --text: #e6edf3; --text-2: #c9d1d9; --muted: #8b949e;
+      --primary: #3b82f6; --primary-hover: #60a5fa; --primary-soft: rgb(59 130 246 / 0.12); --focus: #1d4ed8; --on-primary: #ffffff;
+      --teal: #2dd4bf;
+      --good: #34d399; --good-bg: rgb(16 185 129 / 0.15); --good-border: rgb(16 185 129 / 0.35); --good-fill: #10b981;
+      --warn: #fbbf24; --warn-bg: rgb(245 158 11 / 0.15); --warn-border: rgb(245 158 11 / 0.35); --warn-fill: #f59e0b;
+      --bad: #f87171; --bad-bg: rgb(239 68 68 / 0.15); --bad-border: rgb(239 68 68 / 0.35); --bad-fill: #ef4444;
+      --code-bg: #0d1117; --row-hover: #1c2128; --heat: 59 130 246; --header-bg: rgb(22 27 34 / 0.88);
+      --shadow-pop: 0 4px 16px rgb(0 0 0 / 0.4);
+      color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #151514; --surface: #1e1e1c; --text: #ecebe6; --muted: #a2a19a; --line: #34332f;
-    --accent: #7fb0e0; --accent-text: #0e1a26; --good: #6fcf97; --warn: #e3b25a; --bad: #f2867d;
-    --bar: #2b3a4a; --code: #262624;
+    --canvas: #0d1117; --surface: #161b22; --surface-2: #21262d; --border: #30363d; --rule: #21262d;
+    --text: #e6edf3; --text-2: #c9d1d9; --muted: #8b949e;
+    --primary: #3b82f6; --primary-hover: #60a5fa; --primary-soft: rgb(59 130 246 / 0.12); --focus: #1d4ed8; --on-primary: #ffffff;
+    --teal: #2dd4bf;
+    --good: #34d399; --good-bg: rgb(16 185 129 / 0.15); --good-border: rgb(16 185 129 / 0.35); --good-fill: #10b981;
+    --warn: #fbbf24; --warn-bg: rgb(245 158 11 / 0.15); --warn-border: rgb(245 158 11 / 0.35); --warn-fill: #f59e0b;
+    --bad: #f87171; --bad-bg: rgb(239 68 68 / 0.15); --bad-border: rgb(239 68 68 / 0.35); --bad-fill: #ef4444;
+    --code-bg: #0d1117; --row-hover: #1c2128; --heat: 59 130 246; --header-bg: rgb(22 27 34 / 0.88);
+    --shadow-pop: 0 4px 16px rgb(0 0 0 / 0.4);
+    color-scheme: dark;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  }
-  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
-  header h1 { font-size: 1.9rem; margin: 0 0 4px; letter-spacing: -0.01em; }
-  header p { margin: 0; color: var(--muted); }
-  .privacy { margin-top: 12px; font-size: 0.9rem; color: var(--muted); }
-  .privacy strong { color: var(--text); }
-  section.card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    padding: 20px; margin-top: 20px;
-  }
-  h2 { font-size: 1.1rem; margin: 0 0 12px; }
-  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  button, .file-label {
-    font: inherit; border-radius: 8px; padding: 9px 16px; cursor: pointer;
-    border: 1px solid var(--line); background: var(--surface); color: var(--text);
-  }
-  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
-  .file-label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .hint { font-size: 0.875rem; color: var(--muted); }
-  details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; margin-top: 14px; }
-  textarea {
-    width: 100%; min-height: 260px; margin-top: 8px; padding: 12px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--code); color: var(--text);
-    font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
-  }
-  #status { margin-top: 12px; font-size: 0.9rem; color: var(--muted); min-height: 1.5em; }
-  #status.error { color: var(--bad); white-space: pre-wrap; }
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-  .kpi { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
-  .kpi .label { font-size: 0.8rem; color: var(--muted); }
-  .kpi .value { font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .kpi .sub { font-size: 0.8rem; color: var(--muted); }
-  .meta { color: var(--muted); font-size: 0.875rem; margin: 0 0 14px; }
-  .table-wrap { overflow-x: auto; margin-top: 16px; }
-  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-  th:first-child, td:first-child { text-align: left; }
-  th { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
-  tr.total td { font-weight: 600; }
-  .rate { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
-  .bar { width: 56px; height: 6px; background: var(--bar); border-radius: 3px; overflow: hidden; }
-  .bar span { display: block; height: 100%; }
-  .good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); }
-  .bar .good { background: var(--good); } .bar .warn { background: var(--warn); } .bar .bad { background: var(--bad); }
-  ul.warnings { margin: 14px 0 0; padding-left: 20px; color: var(--warn); font-size: 0.9rem; }
-  .foot { margin-top: 12px; font-size: 0.8rem; color: var(--muted); }
-  footer { margin-top: 32px; font-size: 0.875rem; color: var(--muted); }
-  a { color: var(--accent); }
-  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
-  [hidden] { display: none !important; }
 
-  /* Motion: CSS handles hover and press; anime.js handles result reveals. */
-  button, .file-label, section.card, .kpi {
-    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--text);
+    font: 400 14px/20px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  button:not(:disabled):hover, .file-label:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgb(0 0 0 / 0.08); }
-  button:not(:disabled):active, .file-label:active { transform: translateY(0); box-shadow: none; }
-  .kpi:hover { border-color: var(--accent); }
-  section.card.dragging { border-color: var(--accent); box-shadow: 0 0 0 3px var(--bar); }
-  #status.loading::before {
-    content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%;
-    background: var(--accent); vertical-align: middle; animation: pulse 1.1s ease-in-out infinite;
+  .mono, code, pre, textarea { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace; }
+  .num { font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 1024px) { .wrap { padding: 0 32px; } }
+  .icon { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon.lg { width: 20px; height: 20px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Header */
+  header.top {
+    position: sticky; top: 0; z-index: 20; background: var(--header-bg); border-bottom: 1px solid var(--border);
+    backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px);
   }
-  @keyframes pulse { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+  header.top .wrap { height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--text); }
+  .brand:hover { text-decoration: none; }
+  .brand img { width: 32px; height: 32px; }
+  .brand .name { font-size: 15px; font-weight: 600; line-height: 20px; letter-spacing: -0.01em; }
+  .brand .tagline { display: none; font-size: 12px; line-height: 16px; color: var(--muted); }
+  @media (min-width: 1100px) { .brand .tagline { display: block; } }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px;
+    font: 500 11px/16px "JetBrains Mono", Menlo, monospace; background: var(--surface-2); color: var(--text-2);
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .chip.primary { background: var(--primary-soft); color: var(--primary); }
+  .chip.good { background: var(--good-bg); color: var(--good); border-color: var(--good-border); }
+  .chip.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-border); }
+  .chip.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-border); }
+  .chip.pill { border-radius: 999px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .nav { display: flex; align-items: center; gap: 4px; }
+  .nav a.link { display: none; padding: 6px 10px; border-radius: 4px; color: var(--text-2); font-weight: 500; font-size: 13px; }
+  .nav a.link:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+  @media (min-width: 768px) { .nav a.link { display: inline-block; } }
+  .privacy-pill { display: none; }
+  @media (min-width: 900px) { .privacy-pill { display: inline-flex; } }
+  .icon-btn {
+    display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 6px; border: 0;
+    background: transparent; color: var(--text-2); cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  .theme-sun { display: none; }
+  :root[data-theme="dark"] .theme-sun { display: block; } :root[data-theme="dark"] .theme-moon { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-sun { display: block; } :root:not([data-theme="light"]) .theme-moon { display: none; }
+  }
+
+  main { padding: 20px 0 48px; }
+  .stack > * + * { margin-top: 16px; }
+  @media (min-width: 1024px) { .stack > * + * { margin-top: 24px; } }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .card.pad { padding: 20px; }
+  .eyebrow { font: 600 11px/16px Inter, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: var(--primary); }
+  h1, h2, h3 { margin: 0; letter-spacing: -0.01em; }
+  h1 { font-size: 26px; line-height: 34px; font-weight: 600; letter-spacing: -0.015em; }
+  @media (min-width: 768px) { h1 { font-size: 32px; line-height: 40px; letter-spacing: -0.02em; } }
+  h2 { font-size: 18px; line-height: 26px; font-weight: 600; }
+  h3 { font-size: 15px; line-height: 22px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 18px; margin: 2px 0 0; }
+  .muted { color: var(--muted); }
+
+  /* Privacy banner */
+  .banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--primary-soft); border-color: transparent; }
+  .banner .lead { display: flex; align-items: center; gap: 12px; }
+  .banner .badge-icon { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: var(--surface); color: var(--primary); flex: none; }
+  .banner p { margin: 0; color: var(--text-2); font-size: 12px; line-height: 18px; }
+  .engine.loading .dot { animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.15); } }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 14px;
+    border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font: 500 13px/18px Inter, sans-serif; cursor: pointer; white-space: nowrap;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+  }
+  .btn:hover:not(:disabled) { background: var(--surface-2); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--text-2); }
+  .btn.ghost:hover:not(:disabled) { color: var(--primary); background: var(--primary-soft); }
+  .btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Step 1 */
+  .step-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .step-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dropzone {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    gap: 6px; padding: 32px 16px; border-radius: 8px; border: 1px dashed var(--border); background: var(--canvas);
+    transition: background-color 160ms ease, border-color 160ms ease;
+  }
+  .dropzone:hover, .dropzone.dragging { background: var(--primary-soft); border-color: var(--primary); }
+  .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .dropzone input:disabled { cursor: not-allowed; }
+  .dropzone:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .drop-icon { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--primary); margin-bottom: 6px; transition: transform 200ms ease; }
+  .dropzone:hover .drop-icon, .dropzone.dragging .drop-icon { transform: translateY(-2px) scale(1.06); }
+  .dropzone strong { font-size: 15px; line-height: 22px; font-weight: 600; }
+  .dropzone .browse { color: var(--primary); text-decoration: underline; text-underline-offset: 4px; }
+  .dropzone p { margin: 0; color: var(--muted); font-size: 12px; line-height: 18px; max-width: 460px; }
+
+  details.config { margin-top: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--canvas); }
+  details.config summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 12px; font-weight: 600; font-size: 13px; user-select: none; border-radius: 8px;
+  }
+  details.config summary::-webkit-details-marker { display: none; }
+  details.config summary:hover { color: var(--primary); }
+  details.config .chev { transition: transform 200ms ease; color: var(--muted); }
+  details.config[open] .chev { transform: rotate(90deg); color: var(--primary); }
+  .config-body { display: grid; gap: 12px; padding: 0 12px 12px; }
+  @media (min-width: 1024px) { .config-body { grid-template-columns: 2fr 1fr; } }
+  .editor { position: relative; }
+  .editor textarea {
+    width: 100%; min-height: 300px; resize: vertical; padding: 12px 12px 12px 14px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--code-bg); color: var(--text); font-size: 12.5px; line-height: 19px; tab-size: 2;
+  }
+  .editor textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  .editor .tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+  .editor .tools .icon-btn { width: 28px; height: 28px; background: var(--surface); border: 1px solid var(--border); }
+  .mapping { border: 1px solid var(--border); border-radius: 6px; padding: 12px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+  .mapping .label { font: 600 11px/16px Inter, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .mapping ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .mapping li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .mapping li code { font-size: 11px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mapping .ok { color: var(--good); } .mapping .missing { color: var(--bad); } .mapping .optional { color: var(--muted); }
+
+  .statusbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
+  .statusbar .left { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+  .error-box { margin-top: 12px; padding: 12px; border-radius: 6px; border: 1px solid var(--bad-border); background: var(--bad-bg); color: var(--bad); white-space: pre-wrap; font: 12px/18px "JetBrains Mono", Menlo, monospace; }
+
+  /* Results */
+  .results-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .results-head .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .kpis { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 560px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .kpis { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
+  .kpi { padding: 20px; display: flex; flex-direction: column; gap: 10px; transition: border-color 160ms ease; }
+  .kpi:hover { border-color: var(--primary); }
+  .kpi .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 500; }
+  .kpi .value { font: 500 28px/32px "JetBrains Mono", Menlo, monospace; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .kpi .detail { color: var(--muted); font-size: 12px; line-height: 18px; }
+  .kpi .detail b { color: var(--text); font-weight: 600; }
+  .kpi .foot { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font: 11px/16px "JetBrains Mono", Menlo, monospace; padding-top: 4px; }
+  .kpi .foot b { color: var(--text); font-weight: 500; }
+  .tone-good { color: var(--good); } .tone-warn { color: var(--warn); } .tone-bad { color: var(--bad); }
+  .track { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .track > span { display: block; height: 100%; border-radius: 999px; }
+  .fill-good { background: var(--good-fill); } .fill-warn { background: var(--warn-fill); } .fill-bad { background: var(--bad-fill); }
+  .fill-primary { background: var(--primary); } .fill-primary-2 { background: rgb(var(--heat) / 0.7); }
+
+  .table-card .card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  thead th {
+    height: 36px; padding: 0 12px; background: var(--canvas); border-bottom: 1px solid var(--border);
+    font: 600 11px/16px Inter, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+    text-align: right; white-space: nowrap;
+  }
+  thead th:first-child, tbody td:first-child { text-align: left; padding-left: 20px; }
+  thead th:last-child, tbody td:last-child { padding-right: 20px; }
+  tbody td { height: 44px; padding: 0 12px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; font: 13px/20px "JetBrains Mono", Menlo, monospace; }
+  tbody tr { transition: background-color 150ms ease; }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.total td { background: var(--surface-2); font-weight: 600; border-bottom: 0; }
+  td .pri { display: inline-flex; align-items: center; gap: 8px; font: 600 14px/20px Inter, sans-serif; }
+  td .pri small { font-weight: 400; font-size: 12px; color: var(--muted); }
+  .pri-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--muted); }
+  .rate-cell { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .rate-cell .track { width: 64px; }
+  td.dim { color: var(--muted); }
+  td.strong { font-weight: 600; }
+  .pri-cards { display: none; }
+  @media (max-width: 639px) {
+    .table-scroll { display: none; }
+    .pri-cards { display: grid; gap: 0; }
+    .pri-card { padding: 14px 16px; border-bottom: 1px solid var(--rule); display: grid; gap: 10px; }
+    .pri-card:last-child { border-bottom: 0; }
+    .pri-card .row1 { display: flex; justify-content: space-between; align-items: center; }
+    .pri-card .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .pri-card .metric { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+    .pri-card .metric .line { display: flex; justify-content: space-between; }
+    .pri-card .row3 { display: flex; justify-content: space-between; font: 12px/18px "JetBrains Mono", Menlo, monospace; color: var(--muted); }
+  }
+
+  .panels { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 1024px) { .panels { grid-template-columns: 7fr 5fr; gap: 24px; } }
+  .panel { padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .panel-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .panel-head .title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; margin-top: auto; padding-top: 4px; }
+  .panel-foot b { color: var(--text); }
+  .legend { display: flex; align-items: center; gap: 4px; color: var(--muted); font: 11px/16px "JetBrains Mono", Menlo, monospace; }
+  .legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .heat-scroll { overflow-x: auto; padding-bottom: 4px; }
+  .heat { min-width: 560px; display: grid; grid-template-columns: 36px repeat(24, 1fr); gap: 3px; align-items: center; }
+  .heat .hl { font: 11px/16px "JetBrains Mono", Menlo, monospace; color: var(--muted); text-align: center; }
+  .heat .dl { font: 600 11px/16px "JetBrains Mono", Menlo, monospace; color: var(--muted); }
+  .heat .cell { height: 20px; border-radius: 3px; background: var(--surface-2); }
+  .heat .cell.peak { outline: 2px solid var(--warn-fill); outline-offset: -2px; }
+  .bucket { display: grid; gap: 6px; }
+  .bucket .line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; }
+  .bucket .line span:first-child { font-weight: 500; color: var(--text); }
+  .bucket .count { font: 600 13px/20px "JetBrains Mono", Menlo, monospace; }
+  .bucket .pct { font: 11px/16px "JetBrains Mono", Menlo, monospace; color: var(--muted); margin-left: 6px; }
+  .bucket .track { height: 14px; border-radius: 4px; }
+  .bucket .track > span { border-radius: 4px; }
+  .buckets { display: grid; gap: 14px; }
+
+  .checks { padding: 20px; display: grid; gap: 14px; background: var(--surface); }
+  .checks .head { display: flex; gap: 12px; align-items: flex-start; }
+  .checks .head .badge-icon { width: 32px; height: 32px; border-radius: 6px; display: grid; place-items: center; flex: none; }
+  .checks ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); font-size: 12px; line-height: 18px; display: grid; gap: 4px; }
+  .checks .foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+
+  footer.site { border-top: 1px solid var(--border); background: var(--surface); padding: 20px 0; }
+  footer.site .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 12px; }
+  footer.site .by { display: flex; align-items: center; gap: 10px; }
+  footer.site .by img { height: 28px; width: auto; }
+  .saan-dark { display: none; }
+  :root[data-theme="dark"] .saan-dark { display: block; } :root[data-theme="dark"] .saan-light { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .saan-dark { display: block; } :root:not([data-theme="light"]) .saan-light { display: none; }
+  }
+  footer.site .links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  footer.site .links a { color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  footer.site .links a:hover { color: var(--text); }
+
+  /* Elements anime.js reveals start hidden only when motion is on (set by script). */
+  .motion .reveal { opacity: 0; }
   @media (prefers-reduced-motion: reduce) {
-    *, *::before { transition: none !important; animation: none !important; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
   }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.4 6.4-1.5 6.4-6.9a5.4 5.4 0 0 0-1.5-3.7 5 5 0 0 0-.1-3.8s-1.2-.4-3.9 1.5a13.4 13.4 0 0 0-7 0C6.3 1.6 5.1 2 5.1 2a5 5 0 0 0-.1 3.8A5.4 5.4 0 0 0 3.5 9.5c0 5.4 3.3 6.5 6.4 6.9a3.4 3.4 0 0 0-.9 2.6V22"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2M13 17v2M13 11v2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./" aria-label="ITSM Insights home">
+      <img src="assets/itsm-mark.png" alt="" width="32" height="32">
+      <span>
+        <span class="name">ITSM Insights</span> <span class="chip" id="version-chip">v0.1</span>
+        <span class="tagline">SLA breach rates and time to resolve from a ticket export</span>
+      </span>
+    </a>
+    <div class="nav">
+      <span class="chip pill good privacy-pill"><svg class="icon"><use href="#i-shield"/></svg>Runs in your browser. Nothing is uploaded.</span>
+      <a class="link" href="https://github.com/musaraza004/itsm-insights/blob/main/docs/METHODOLOGY.md">Methodology</a>
+      <a class="link" href="https://github.com/musaraza004/itsm-insights#quick-start">CLI</a>
+      <a class="icon-btn" href="https://github.com/musaraza004/itsm-insights" aria-label="Source code on GitHub"><svg class="icon lg"><use href="#i-github"/></svg></a>
+      <button class="icon-btn" id="theme" type="button" aria-label="Switch between light and dark theme">
+        <svg class="icon lg theme-moon"><use href="#i-moon"/></svg><svg class="icon lg theme-sun"><use href="#i-sun"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
 <main>
-  <header>
-    <h1>ITSM Insights</h1>
-    <p>SLA breach rates and time to resolve from a ticket export, in one click.</p>
-    <p class="privacy"><strong>Your data stays on your device.</strong> The analysis runs in your browser
-      (Python via WebAssembly). Nothing is uploaded anywhere.</p>
-  </header>
+  <div class="wrap stack">
+    <section class="card banner reveal" aria-label="Privacy">
+      <div class="lead">
+        <div class="badge-icon"><svg class="icon lg"><use href="#i-shield"/></svg></div>
+        <div>
+          <h3>Client-side analytics <span class="chip pill good">Zero upload</span></h3>
+          <p>Your tickets stay on your device. The analysis runs in this browser tab with Python compiled to WebAssembly.</p>
+        </div>
+      </div>
+      <span class="chip engine loading" id="engine"><span class="dot"></span><span id="engine-text">Loading Python engine (about 15 MB, first visit only)</span></span>
+    </section>
 
-  <section class="card" id="choose">
-    <h2>1. Choose tickets</h2>
-    <div class="row">
-      <label class="file-label">
-        <input id="file" type="file" accept=".csv,.json" disabled>
-        Upload or drop CSV / JSON
+    <section class="card pad reveal" id="choose" aria-labelledby="choose-title">
+      <div class="step-head">
+        <div>
+          <div class="eyebrow">Step 1 · Dataset</div>
+          <h2 id="choose-title">Choose a ticket export</h2>
+        </div>
+        <div class="step-actions">
+          <button class="btn" id="demo" type="button" disabled><svg class="icon" style="color:var(--primary)"><use href="#i-play"/></svg>Try with 5,000 demo tickets</button>
+          <button class="btn ghost" id="download-demo" type="button" hidden><svg class="icon"><use href="#i-download"/></svg>Download demo CSV</button>
+        </div>
+      </div>
+
+      <label class="dropzone" id="dropzone">
+        <input id="file" type="file" accept=".csv,.json" disabled aria-describedby="drop-hint">
+        <span class="drop-icon"><svg class="icon lg"><use href="#i-upload"/></svg></span>
+        <strong>Drop a CSV or JSON export here, or <span class="browse">browse files</span></strong>
+        <p id="drop-hint">Any helpdesk export works once its column names are mapped below. Files are read in memory on this device and never sent anywhere.</p>
       </label>
-      <span class="hint">or</span>
-      <button id="demo" disabled>Try with 5,000 demo tickets</button>
-      <button id="download-demo" hidden>Download demo CSV</button>
-    </div>
-    <p class="hint">Needs columns for ticket id, created time and priority. Map your export's column names
-      in the config below. The default config matches the demo data.</p>
-    <details>
-      <summary>SLA policy and column mapping (YAML)</summary>
-      <textarea id="config" spellcheck="false" aria-label="Config YAML"></textarea>
-    </details>
-    <div id="status" class="loading" role="status" aria-live="polite">Loading the Python runtime (about 15 MB, first visit only)...</div>
-  </section>
 
-  <section class="card" id="results" hidden>
-    <h2>2. Results</h2>
-    <p class="meta" id="meta"></p>
-    <div class="kpis" id="kpis"></div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Priority</th><th scope="col">Tickets</th>
-            <th scope="col">Response breach</th><th scope="col">Resolve breach</th>
-            <th scope="col">Open, in SLA</th><th scope="col">Mean TTR</th>
-            <th scope="col">Median TTR</th><th scope="col">P90 TTR</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-    <ul class="warnings" id="warnings"></ul>
-    <p class="foot">Breach rate = breached / (met + breached). Open tickets still inside their target are
-      excluded. TTR = created to resolved, wall-clock (24x7).
-      <a href="https://github.com/musaraza004/itsm-insights/blob/main/docs/METHODOLOGY.md">Methodology</a></p>
-    <div class="row"><button id="download-json">Download results (JSON)</button></div>
-  </section>
+      <details class="config" id="config-panel">
+        <summary>
+          <span style="display:flex;align-items:center;gap:8px">
+            <svg class="icon chev"><use href="#i-chev"/></svg>SLA policy and column mapping
+            <span class="chip">sla.yaml</span>
+          </span>
+          <span class="muted" style="font-weight:400;font-size:12px">Edit to match your export</span>
+        </summary>
+        <div class="config-body">
+          <div class="editor">
+            <textarea id="config" spellcheck="false" aria-label="Config YAML"></textarea>
+            <div class="tools">
+              <button class="icon-btn" id="copy-config" type="button" aria-label="Copy config"><svg class="icon"><use href="#i-copy"/></svg></button>
+              <button class="icon-btn" id="reset-config" type="button" aria-label="Reset config to default"><svg class="icon"><use href="#i-reset"/></svg></button>
+            </div>
+          </div>
+          <div class="mapping" aria-live="polite">
+            <span class="label">Mapping check</span>
+            <div id="mapping-summary" class="muted" style="font-size:12px">Choose a file to check that every mapped column exists.</div>
+            <ul id="mapping-list"></ul>
+            <span class="muted" style="font-size:11px;margin-top:auto">Durations: <code>15m</code>, <code>4h</code>, <code>3d</code>, <code>1h30m</code>. Calendar: <code>24x7</code> (business hours arrive in v0.2).</span>
+          </div>
+        </div>
+      </details>
 
-  <footer>
-    Open source (MIT). Command-line version and source code:
-    <a href="https://github.com/musaraza004/itsm-insights">github.com/musaraza004/itsm-insights</a>
-    <span id="version"></span>
-  </footer>
+      <div class="statusbar">
+        <div class="left">
+          <span class="chip pill" id="status-chip"><span class="dot"></span><span id="status-text">Waiting for the engine</span></span>
+          <span id="dataset" hidden>Dataset: <code id="dataset-name"></code></span>
+        </div>
+        <span class="chip" id="rows-chip" hidden></span>
+      </div>
+      <div class="error-box" id="error" role="alert" hidden></div>
+    </section>
+
+    <section class="stack" id="results" hidden aria-labelledby="results-title">
+      <div class="results-head reveal-results">
+        <div>
+          <div class="eyebrow">Step 2 · Results <span class="chip good" id="dataset-kind" style="margin-left:6px"></span></div>
+          <h1 id="results-title"></h1>
+          <div class="meta" id="meta"></div>
+        </div>
+        <button class="btn primary" id="download-json" type="button"><svg class="icon"><use href="#i-download"/></svg>Download results (JSON)</button>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card table-card reveal-results">
+        <div class="card-head">
+          <div>
+            <h2>SLA by priority</h2>
+            <p class="sub">Response and resolution performance for each priority in your SLA policy.</p>
+          </div>
+          <span class="chip">Breach rate = breached / (met + breached)</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Priority</th><th scope="col">Tickets</th><th scope="col">Response breach</th>
+                <th scope="col">Resolve breach</th><th scope="col">Open, in SLA</th><th scope="col">Mean TTR</th>
+                <th scope="col">Median TTR</th><th scope="col">P90 TTR</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div class="pri-cards" id="pri-cards"></div>
+      </div>
+
+      <div class="panels">
+        <div class="card panel reveal-results">
+          <div class="panel-head">
+            <div>
+              <div class="title"><h2>Peak-hour load</h2><span class="chip primary">7 × 24</span></div>
+              <p class="sub" id="heat-sub">Tickets created by weekday and hour</p>
+            </div>
+            <div class="legend" aria-hidden="true">Low <i style="background:var(--surface-2)"></i><i style="background:rgb(var(--heat)/.3)"></i><i style="background:rgb(var(--heat)/.6)"></i><i style="background:rgb(var(--heat)/1)"></i> Peak</div>
+          </div>
+          <div class="heat-scroll"><div class="heat" id="heat" role="img"></div></div>
+          <div class="panel-foot"><span id="heat-peak"></span><span class="mono" id="heat-tz"></span></div>
+        </div>
+
+        <div class="card panel reveal-results">
+          <div class="panel-head">
+            <div>
+              <div class="title"><h2>Backlog ageing</h2><span class="chip" id="open-chip"></span></div>
+              <p class="sub">How long currently open tickets have been waiting</p>
+            </div>
+            <svg class="icon lg muted"><use href="#i-clock"/></svg>
+          </div>
+          <div class="buckets" id="buckets"></div>
+          <div class="panel-foot"><span id="stale"></span></div>
+        </div>
+      </div>
+
+      <div class="card checks reveal-results">
+        <div class="head">
+          <div class="badge-icon" id="checks-icon"></div>
+          <div>
+            <h3 id="checks-title"></h3>
+            <ul id="warnings"></ul>
+          </div>
+        </div>
+        <div class="foot">
+          <span>Open tickets still inside their target are pending and left out of breach rates.
+            <a href="https://github.com/musaraza004/itsm-insights/blob/main/docs/METHODOLOGY.md">How every metric is calculated</a></span>
+          <button class="btn" id="download-json-2" type="button"><svg class="icon"><use href="#i-download"/></svg>Download results (JSON)</button>
+        </div>
+      </div>
+    </section>
+  </div>
 </main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="by">
+      <img class="saan-light" src="assets/saan-logo-light.png" alt="SAAN Technologies" width="92" height="28">
+      <img class="saan-dark" src="assets/saan-logo-dark.png" alt="SAAN Technologies" width="92" height="28">
+      <span>Open source under the MIT License</span>
+    </div>
+    <div class="links">
+      <a href="https://github.com/musaraza004/itsm-insights"><svg class="icon"><use href="#i-github"/></svg>GitHub</a>
+      <a href="https://github.com/musaraza004/itsm-insights/blob/main/docs/METHODOLOGY.md"><svg class="icon"><use href="#i-book"/></svg>Methodology</a>
+      <span class="mono">No tracking · No upload</span>
+    </div>
+  </div>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
 <script>
 const DEFAULT_CONFIG = `# Matches the columns written by the demo generator.
+# Change the right-hand names to match your export's headers.
 timezone: Europe/London
 
 columns:
@@ -187,18 +536,30 @@ import pandas as pd
 from itsm_insights.analysis import analyze
 from itsm_insights.config import ConfigError, load_config
 from itsm_insights.generator import generate, to_csv
-from itsm_insights.loaders import LoaderError, load_tickets
+from itsm_insights.loaders import LoaderError, check_mapping, load_tickets
 
-def run(ticket_path, config_text):
-    with open("/tmp/sla.yaml", "w", encoding="utf-8") as f:
-        f.write(config_text)
+CONFIG_PATH = "/tmp/sla.yaml"
+
+def _friendly(exc):
+    return str(exc).replace(CONFIG_PATH, "the config").replace("/tmp/", "")
+
+def _config(text):
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        f.write(text)
+    return load_config(CONFIG_PATH)
+
+def mapping(path, config_text):
     try:
-        cfg = load_config("/tmp/sla.yaml")
-        tickets = load_tickets(ticket_path, cfg)
-        return json.dumps(analyze(tickets, cfg).as_dict())
+        return json.dumps({"fields": check_mapping(path, _config(config_text))})
     except (ConfigError, LoaderError, ValueError) as exc:
-        message = str(exc).replace("/tmp/sla.yaml", "the config")
-        return json.dumps({"error": message.replace("upload.csv", "your file")})
+        return json.dumps({"error": _friendly(exc)})
+
+def run(path, config_text):
+    try:
+        cfg = _config(config_text)
+        return json.dumps(analyze(load_tickets(path, cfg), cfg).as_dict())
+    except (ConfigError, LoaderError, ValueError) as exc:
+        return json.dumps({"error": _friendly(exc)})
     except Exception:
         return json.dumps({"error": "Unexpected error:\\n" + traceback.format_exc(limit=3)})
 
@@ -207,48 +568,21 @@ def make_demo(path, n):
     to_csv(generate(n, end=end, seed=42), path)
 `;
 
+const GH = "https://github.com/musaraza004/itsm-insights";
+const PRIORITY_LABEL = { P1: "Critical", P2: "High", P3: "Medium", P4: "Low" };
+const PRIORITY_DOT = { P1: "var(--bad-fill)", P2: "var(--warn-fill)", P3: "var(--primary)", P4: "var(--good-fill)" };
 const $ = (id) => document.getElementById(id);
-const statusEl = $("status");
-let py = null, lastResult = null, lastSource = "";
-
-function setStatus(text, isError = false, loading = false) {
-  statusEl.textContent = text;
-  statusEl.classList.toggle("error", isError);
-  statusEl.classList.toggle("loading", loading);
-}
+const nf = (n) => Number(n).toLocaleString("en-GB");
+let py = null, lastResult = null, currentPath = null, currentLabel = "";
 
 const motionOK = () =>
   typeof anime !== "undefined" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (motionOK()) document.documentElement.classList.add("motion");
 
-// Results reveal: section rises in, KPI tiles stagger, numbers count up, bars grow, rows follow.
-function animateIn() {
-  if (!motionOK()) return;
-  const section = $("results");
-  anime.remove([section, ".kpi", "#rows tr", ".bar > span", "[data-count]"]);
-  anime({ targets: section, opacity: [0, 1], translateY: [16, 0], duration: 500, easing: "easeOutCubic" });
-  anime({
-    targets: ".kpi", opacity: [0, 1], translateY: [12, 0], scale: [0.98, 1],
-    delay: anime.stagger(70, { start: 120 }), duration: 520, easing: "easeOutCubic",
-  });
-  document.querySelectorAll("[data-count]").forEach((el) => {
-    const to = Number(el.dataset.count), pct = el.dataset.format === "pct", state = { v: 0 };
-    anime({
-      targets: state, v: to, duration: 900, delay: 180, easing: "easeOutExpo",
-      update: () => {
-        el.textContent = pct ? `${state.v.toFixed(1)}%` : Math.round(state.v).toLocaleString();
-      },
-    });
-  });
-  anime({
-    targets: "#rows tr", opacity: [0, 1], translateX: [-8, 0],
-    delay: anime.stagger(55, { start: 320 }), duration: 420, easing: "easeOutQuad",
-  });
-  anime({
-    targets: ".bar > span", width: (el) => [0, el.dataset.width + "%"],
-    delay: anime.stagger(30, { start: 420 }), duration: 800, easing: "easeOutQuart",
-  });
+/* ---------- small helpers ---------- */
+function esc(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
-
 function fmtDuration(seconds) {
   if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "-";
   let s = Math.round(Math.abs(seconds));
@@ -260,143 +594,350 @@ function fmtDuration(seconds) {
   if (m) return `${m}m`;
   return `${s}s`;
 }
+const tone = (rate) => rate < 0.05 ? "good" : rate < 0.15 ? "warn" : "bad";
+const toneLabel = { good: "Healthy", warn: "Warning", bad: "Breach" };
+const pctText = (r) => r === null || r === undefined ? "-" : `${(r * 100).toFixed(1)}%`;
+const barWidth = (r) => Math.min(100, Math.max(r > 0 ? 3 : 0, Math.round(r * 200)));  // 50% fills the bar
+const icon = (id, cls = "icon") => `<svg class="${cls}"><use href="#i-${id}"/></svg>`;
 
-function tone(rate) { return rate < 0.05 ? "good" : rate < 0.15 ? "warn" : "bad"; }
+function setEngine(state, text) {
+  const el = $("engine");
+  el.className = "chip engine " + ({ loading: "loading", ready: "good", error: "bad" }[state] || "");
+  $("engine-text").textContent = text;
+}
+function setStatus(state, text) {
+  $("status-chip").className = "chip pill " + ({ busy: "primary engine loading", done: "good", error: "bad", idle: "" }[state] || "");
+  $("status-text").textContent = text;
+}
+function showError(message) {
+  $("error").textContent = message;
+  $("error").hidden = !message;
+}
+// Yield so status text paints before heavy Python work. A timer, not requestAnimationFrame:
+// rAF never fires in a background tab, which would stall the analysis until the user returns.
+const paint = () => new Promise((r) => setTimeout(r, 30));
 
-function rateCell(summary) {
-  if (summary.breach_rate === null) return '<span class="hint">-</span>';
-  const r = summary.breach_rate, t = tone(r);
-  const width = Math.min(100, Math.round(r * 200));  // 50% breach fills the bar
-  return `<span class="rate" title="${summary.breached} of ${summary.met + summary.breached} breached">` +
-    `<span class="${t}">${(r * 100).toFixed(1)}%</span>` +
-    `<span class="bar"><span class="${t}" data-width="${width}" style="width:${width}%"></span></span></span>`;
+/* ---------- rendering ---------- */
+function rateCell(s) {
+  if (s.breach_rate === null) return '<span class="muted">-</span>';
+  const t = tone(s.breach_rate), w = barWidth(s.breach_rate);
+  return `<span class="rate-cell" title="${nf(s.breached)} of ${nf(s.met + s.breached)} breached">` +
+    `<span class="track"><span class="fill-${t} grow" data-width="${w}" style="width:${w}%"></span></span>` +
+    `<span class="tone-${t}">${pctText(s.breach_rate)}</span></span>`;
 }
 
-// count: optional {to, format: "pct" | "int"} for the count-up animation.
-function kpi(label, value, sub, cls = "", count = null) {
-  const data = count ? ` data-count="${count.to}" data-format="${count.format}"` : "";
-  return `<div class="kpi"><div class="label">${label}</div>` +
-    `<div class="value ${cls}"${data}>${value}</div><div class="sub">${sub}</div></div>`;
+function priorityLabel(p) {
+  const dot = PRIORITY_DOT[p] || "var(--muted)";
+  const label = PRIORITY_LABEL[p] ? ` <small>${PRIORITY_LABEL[p]}</small>` : "";
+  return `<span class="pri"><span class="pri-dot" style="background:${dot}"></span>${esc(p)}${label}</span>`;
 }
 
-function esc(text) {
-  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function kpiTile({ label, badge, value, count, cls = "", detail, foot }) {
+  const data = count ? ` data-count="${count.to}" data-format="${count.format}" data-final="${esc(value)}"` : "";
+  return `<div class="card kpi reveal-kpi"><div class="top"><span>${label}</span>${badge || ""}</div>` +
+    `<div class="value ${cls}"${data}>${value}</div><div class="detail">${detail}</div>${foot || ""}</div>`;
+}
+
+function breachKpi(label, s) {
+  if (s.breach_rate === null) {
+    return kpiTile({ label, value: "-", detail: "No tickets with a decided outcome yet" });
+  }
+  const t = tone(s.breach_rate), w = barWidth(s.breach_rate);
+  return kpiTile({
+    label,
+    badge: `<span class="chip ${t}">${toneLabel[t]}</span>`,
+    value: pctText(s.breach_rate), cls: `tone-${t}`,
+    count: { to: (s.breach_rate * 100).toFixed(1), format: "pct" },
+    detail: `<b>${nf(s.breached)}</b> of ${nf(s.met + s.breached)} evaluated` +
+      (s.pending ? ` · ${nf(s.pending)} pending` : ""),
+    foot: `<div class="track"><span class="fill-${t} grow" data-width="${w}" style="width:${w}%"></span></div>`,
+  });
 }
 
 function render(r) {
   const t = r.tickets, resp = r.sla.response, res = r.sla.resolve, ttr = r.time_to_resolve.overall;
-  $("meta").textContent = `${lastSource}: tickets created ${r.period.start.slice(0, 10)} to ` +
-    `${r.period.end.slice(0, 10)}; open tickets measured as of ${r.as_of.slice(0, 16).replace("T", " ")} UTC.`;
-  const pct = (s) => s.breach_rate === null ? "-" : `${(s.breach_rate * 100).toFixed(1)}%`;
-  const pctCount = (s) => s.breach_rate === null ? null : { to: (s.breach_rate * 100).toFixed(1), format: "pct" };
+  $("results-title").textContent = `${nf(t.total)} tickets analysed`;
+  $("dataset-kind").textContent = currentLabel.startsWith("Demo") ? "Synthetic demo data" : "Your data";
+  $("meta").textContent = `Created ${r.period.start.slice(0, 10)} to ${r.period.end.slice(0, 10)} · ` +
+    `open tickets measured as of ${r.as_of.slice(0, 16).replace("T", " ")} UTC`;
+
+  const coverage = t.total ? t.resolved / t.total : 0;
+  const tail = ttr.median_seconds ? ttr.p90_seconds / ttr.median_seconds : null;
   $("kpis").innerHTML =
-    kpi("Tickets", t.total.toLocaleString(), `${t.resolved.toLocaleString()} resolved, ${t.open.toLocaleString()} open`,
-        "", { to: t.total, format: "int" }) +
-    kpi("Response SLA breached", pct(resp), `${resp.breached.toLocaleString()} of ${(resp.met + resp.breached).toLocaleString()}`,
-        resp.breach_rate === null ? "" : tone(resp.breach_rate), pctCount(resp)) +
-    kpi("Resolution SLA breached", pct(res), `${res.breached.toLocaleString()} of ${(res.met + res.breached).toLocaleString()}`,
-        res.breach_rate === null ? "" : tone(res.breach_rate), pctCount(res)) +
-    kpi("Median time to resolve", fmtDuration(ttr.median_seconds), `P90 ${fmtDuration(ttr.p90_seconds)}`);
+    kpiTile({
+      label: "Tickets", badge: `<span style="color:var(--primary)">${icon("ticket", "icon lg")}</span>`,
+      value: nf(t.total), count: { to: t.total, format: "int" },
+      detail: `<b>${nf(t.resolved)}</b> resolved · <b style="color:var(--primary)">${nf(t.open)}</b> open`,
+      foot: `<div class="foot"><span>Resolved share</span><b>${(coverage * 100).toFixed(1)}%</b></div>`,
+    }) +
+    breachKpi("Response SLA breached", resp) +
+    breachKpi("Resolution SLA breached", res) +
+    kpiTile({
+      label: "Median time to resolve", badge: `<span class="muted">${icon("clock", "icon lg")}</span>`,
+      value: fmtDuration(ttr.median_seconds),
+      detail: `P90 <b>${fmtDuration(ttr.p90_seconds)}</b> · mean ${fmtDuration(ttr.mean_seconds)}`,
+      foot: `<div class="foot"><span>Long tail (P90 / median)</span><b>${tail ? tail.toFixed(1) + "×" : "-"}</b></div>`,
+    });
 
   const byTtr = r.time_to_resolve.by_priority;
   const rows = Object.entries(r.sla.by_priority).map(([p, row]) => {
     const s = byTtr[p] || {};
-    return `<tr><td>${esc(p)}</td><td>${row.tickets.toLocaleString()}</td>` +
-      `<td>${rateCell(row.response)}</td><td>${rateCell(row.resolve)}</td>` +
-      `<td>${row.resolve.pending.toLocaleString()}</td><td>${fmtDuration(s.mean_seconds)}</td>` +
-      `<td>${fmtDuration(s.median_seconds)}</td><td>${fmtDuration(s.p90_seconds)}</td></tr>`;
+    return `<tr><td>${priorityLabel(p)}</td><td>${nf(row.tickets)}</td>` +
+      `<td>${rateCell(row.response)}</td><td>${rateCell(row.resolve)}</td><td>${nf(row.resolve.pending)}</td>` +
+      `<td class="dim">${fmtDuration(s.mean_seconds)}</td><td class="strong">${fmtDuration(s.median_seconds)}</td>` +
+      `<td class="dim">${fmtDuration(s.p90_seconds)}</td></tr>`;
   });
-  rows.push(`<tr class="total"><td>All</td><td>${t.total.toLocaleString()}</td><td>${rateCell(resp)}</td>` +
-    `<td>${rateCell(res)}</td><td>${res.pending.toLocaleString()}</td><td>${fmtDuration(ttr.mean_seconds)}</td>` +
-    `<td>${fmtDuration(ttr.median_seconds)}</td><td>${fmtDuration(ttr.p90_seconds)}</td></tr>`);
+  rows.push(`<tr class="total"><td><span class="pri">All</span></td><td>${nf(t.total)}</td><td>${rateCell(resp)}</td>` +
+    `<td>${rateCell(res)}</td><td>${nf(res.pending)}</td><td class="dim">${fmtDuration(ttr.mean_seconds)}</td>` +
+    `<td>${fmtDuration(ttr.median_seconds)}</td><td class="dim">${fmtDuration(ttr.p90_seconds)}</td></tr>`);
   $("rows").innerHTML = rows.join("");
-  $("warnings").innerHTML = r.warnings.map((w) => `<li>${esc(w)}</li>`).join("");
+
+  $("pri-cards").innerHTML = Object.entries(r.sla.by_priority).map(([p, row]) => {
+    const s = byTtr[p] || {};
+    const metric = (name, sum) => {
+      if (sum.breach_rate === null) return `<div class="metric"><div class="line"><span>${name}</span><span>-</span></div></div>`;
+      const tn = tone(sum.breach_rate), w = barWidth(sum.breach_rate);
+      return `<div class="metric"><div class="line"><span>${name}</span><span class="num tone-${tn}">${pctText(sum.breach_rate)}</span></div>` +
+        `<div class="track"><span class="fill-${tn} grow" data-width="${w}" style="width:${w}%"></span></div></div>`;
+    };
+    return `<div class="pri-card"><div class="row1">${priorityLabel(p)}<span class="chip primary">${nf(row.tickets)} tickets</span></div>` +
+      `<div class="pair">${metric("Response", row.response)}${metric("Resolve", row.resolve)}</div>` +
+      `<div class="row3"><span>Open, in SLA: ${nf(row.resolve.pending)}</span><span>TTR ${fmtDuration(s.median_seconds)} (P90 ${fmtDuration(s.p90_seconds)})</span></div></div>`;
+  }).join("");
+
+  renderHeat(r.load);
+  renderBacklog(r.backlog_ageing, t.open);
+  renderChecks(r.warnings);
   $("results").hidden = false;
-  animateIn();
 }
 
-async function analyzePath(path, label) {
-  lastSource = label;
-  setStatus("Analysing...", false, true);
-  await new Promise((r) => setTimeout(r, 20));  // let the status paint
-  const out = JSON.parse(py.globals.get("run")(path, $("config").value));
+function renderHeat(load) {
+  const grid = load.by_weekday_hour, days = load.weekdays;
+  const max = Math.max(1, ...grid.flat());
+  const peak = load.peak;
+  let html = "<span></span>";
+  for (let h = 0; h < 24; h++) html += `<span class="hl">${h % 3 === 0 ? String(h).padStart(2, "0") : ""}</span>`;
+  grid.forEach((row, d) => {
+    html += `<span class="dl">${days[d]}</span>`;
+    row.forEach((count, h) => {
+      const ratio = count / max;
+      const bg = count === 0 ? "var(--surface-2)" : `rgb(var(--heat) / ${(0.12 + 0.88 * ratio).toFixed(2)})`;
+      const isPeak = peak && peak.tickets > 0 && days[d] === peak.weekday && h === peak.hour;
+      html += `<span class="cell${isPeak ? " peak" : ""}" style="background:${bg}" ` +
+        `title="${days[d]} ${String(h).padStart(2, "0")}:00-${String(h + 1).padStart(2, "0")}:00 · ${nf(count)} tickets"></span>`;
+    });
+  });
+  $("heat").innerHTML = html;
+  $("heat").setAttribute("aria-label", peak ? `Ticket arrivals by weekday and hour. Busiest: ${peak.weekday} ${peak.hour}:00 with ${peak.tickets} tickets.` : "No tickets");
+  $("heat-sub").textContent = `Tickets created by weekday and hour, local time`;
+  $("heat-peak").innerHTML = peak && peak.tickets
+    ? `Busiest hour: <b>${peak.weekday} ${String(peak.hour).padStart(2, "0")}:00-${String(peak.hour + 1).padStart(2, "0")}:00</b> (${nf(peak.tickets)} tickets)`
+    : "No tickets";
+  $("heat-tz").textContent = load.timezone;
+}
+
+function renderBacklog(buckets, open) {
+  $("open-chip").textContent = `${nf(open)} open`;
+  const fills = { "0-1d": "fill-primary", "1-3d": "fill-primary-2", "3-7d": "fill-warn", "7d+": "fill-bad" };
+  const labels = { "0-1d": "Under 1 day", "1-3d": "1 to 3 days", "3-7d": "3 to 7 days", "7d+": "Over 7 days" };
+  const total = Object.values(buckets).reduce((a, b) => a + b, 0);
+  $("buckets").innerHTML = Object.entries(buckets).map(([k, n]) => {
+    const pct = total ? (n / total) * 100 : 0;
+    const countCls = k === "7d+" && n ? "tone-bad" : k === "3-7d" && n ? "tone-warn" : "";
+    return `<div class="bucket"><div class="line"><span>${labels[k] || k}</span>` +
+      `<span><span class="count ${countCls}">${nf(n)}</span><span class="pct">${pct.toFixed(1)}%</span></span></div>` +
+      `<div class="track"><span class="${fills[k] || "fill-primary"} grow" data-width="${pct.toFixed(1)}" style="width:${pct.toFixed(1)}%"></span></div></div>`;
+  }).join("");
+  const stale = buckets["7d+"] || 0;
+  $("stale").innerHTML = total === 0 ? "No open tickets at the analysis time."
+    : stale ? `Open longer than 7 days: <b class="tone-bad">${nf(stale)} tickets</b>` : "No ticket has been open longer than 7 days.";
+}
+
+function renderChecks(warnings) {
+  const ok = warnings.length === 0;
+  $("checks-icon").style.cssText = ok ? "background:var(--good-bg);color:var(--good)" : "background:var(--warn-bg);color:var(--warn)";
+  $("checks-icon").innerHTML = icon(ok ? "check" : "alert", "icon lg");
+  $("checks-title").textContent = ok ? "Data checks passed" : "Data checks and exclusions";
+  $("warnings").innerHTML = ok
+    ? "<li>No missing policies, out-of-order timestamps or other problems were found.</li>"
+    : warnings.map((w) => `<li>${esc(w)}</li>`).join("");
+}
+
+/* ---------- motion (anime.js) ---------- */
+// Content must never depend on an animation finishing: anime.js pauses while the page is
+// hidden (background tab, headless capture), so each sequence ends with a timer that snaps
+// everything to its final state.
+const ANIMATED = ".reveal, .reveal-results, .reveal-kpi, #rows tr, .pri-card, .panels .panel, #heat .cell, .checks";
+function settle(scope = document) {
+  if (typeof anime !== "undefined") anime.remove(scope.querySelectorAll(`${ANIMATED}, .grow`));
+  // opacity 1, not "": the CSS rule .motion .reveal { opacity: 0 } would otherwise apply again.
+  scope.querySelectorAll(ANIMATED).forEach((el) => { el.style.opacity = "1"; el.style.transform = "none"; });
+  scope.querySelectorAll(".grow").forEach((el) => { el.style.width = el.dataset.width + "%"; });
+  scope.querySelectorAll("[data-final]").forEach((el) => {
+    if (typeof anime !== "undefined") anime.remove(el);
+    el.textContent = el.dataset.final;
+  });
+}
+let settleTimer = null;
+function settleAfter(ms) { clearTimeout(settleTimer); settleTimer = setTimeout(() => settle(), ms); }
+
+function animateIntro() {
+  if (!motionOK()) return;
+  anime({ targets: ".reveal", opacity: [0, 1], translateY: [12, 0], delay: anime.stagger(90), duration: 600, easing: "easeOutCubic" });
+  settleAfter(1500);
+}
+
+function animateResults() {
+  if (!motionOK()) return;
+  settleAfter(2600);
+  const tl = anime.timeline({ easing: "easeOutCubic" });
+  tl.add({ targets: ".reveal-results, .reveal-kpi", opacity: 0, duration: 0 })
+    .add({ targets: ".results-head", opacity: [0, 1], translateY: [14, 0], duration: 480 })
+    .add({ targets: ".reveal-kpi", opacity: [0, 1], translateY: [14, 0], scale: [0.98, 1], delay: anime.stagger(70), duration: 520 }, "-=280")
+    .add({ targets: ".table-card", opacity: [0, 1], translateY: [14, 0], duration: 480 }, "-=380")
+    .add({ targets: "#rows tr, .pri-card", opacity: [0, 1], translateX: [-10, 0], delay: anime.stagger(50), duration: 380, easing: "easeOutQuad" }, "-=300")
+    .add({ targets: ".panels .panel", opacity: [0, 1], translateY: [14, 0], delay: anime.stagger(90), duration: 480 }, "-=260")
+    .add({ targets: "#heat .cell", opacity: [0, 1], scale: [0.6, 1], delay: anime.stagger(6, { grid: [24, 7], from: "center" }), duration: 320, easing: "easeOutQuad" }, "-=360")
+    .add({ targets: ".checks", opacity: [0, 1], translateY: [10, 0], duration: 420 }, "-=600");
+
+  anime({ targets: ".grow", width: (el) => [0, el.dataset.width + "%"], delay: anime.stagger(25, { start: 450 }), duration: 900, easing: "easeOutQuart" });
+
+  document.querySelectorAll("[data-count]").forEach((el) => {
+    const to = Number(el.dataset.count), pct = el.dataset.format === "pct", state = { v: 0 };
+    anime({
+      targets: state, v: to, duration: 1100, delay: 350, easing: "easeOutExpo",
+      update: () => { el.textContent = pct ? `${state.v.toFixed(1)}%` : nf(Math.round(state.v)); },
+    });
+  });
+}
+
+/* ---------- actions ---------- */
+async function checkMapping() {
+  if (!py || !currentPath) return;
+  const out = JSON.parse(py.globals.get("mapping")(currentPath, $("config").value));
+  if (out.error) {
+    $("mapping-summary").textContent = "Fix the config first: " + out.error.split("\n")[0];
+    $("mapping-list").innerHTML = "";
+    return;
+  }
+  const fields = out.fields;
+  const found = fields.filter((f) => f.found).length;
+  const missingRequired = fields.filter((f) => f.required && !f.found).length;
+  $("mapping-summary").innerHTML = missingRequired
+    ? `<span class="tone-bad">${missingRequired} required column(s) missing.</span> Edit the names under <code>columns:</code>.`
+    : `<span class="tone-good">${found} of ${fields.length} mapped columns found.</span>`;
+  $("mapping-list").innerHTML = fields.map((f) => {
+    const state = f.found ? "ok" : f.required ? "missing" : "optional";
+    const mark = f.found ? "found" : f.required ? "missing" : "not in file";
+    return `<li><span>${esc(f.field)}${f.required ? " *" : ""}</span><code title="${esc(f.column)}">${esc(f.column)}</code><span class="${state}">${mark}</span></li>`;
+  }).join("");
+}
+
+async function analyse() {
+  if (!py || !currentPath) return;
+  showError("");
+  setStatus("busy", "Analysing...");
+  await paint();
+  await checkMapping();
+  const started = performance.now();
+  const out = JSON.parse(py.globals.get("run")(currentPath, $("config").value));
+  const ms = Math.round(performance.now() - started);
   if (out.error) {
     $("results").hidden = true;
-    setStatus(out.error, true);
+    setStatus("error", "Could not analyse this file");
+    showError(out.error);
+    $("config-panel").open = true;
     return;
   }
   lastResult = out;
+  setStatus("done", `Done in ${nf(ms)} ms`);
+  $("dataset").hidden = false;
+  $("dataset-name").textContent = currentLabel;
+  $("rows-chip").hidden = false;
+  $("rows-chip").textContent = `${nf(out.tickets.total)} rows`;
   render(out);
-  setStatus(`Analysed ${out.tickets.total.toLocaleString()} tickets.`);
-  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  animateResults();
+  $("results").scrollIntoView({ behavior: motionOK() ? "smooth" : "auto", block: "start" });
+}
+
+async function useFile(file) {
+  if (!file || !py) return;
+  const ext = file.name.toLowerCase().endsWith(".json") ? ".json" : ".csv";
+  currentPath = "/tmp/upload" + ext;
+  currentLabel = file.name;
+  py.FS.writeFile(currentPath, new Uint8Array(await file.arrayBuffer()));
+  await analyse();
+}
+
+async function useDemo() {
+  if (!py) return;
+  $("config").value = DEFAULT_CONFIG;
+  setStatus("busy", "Generating 5,000 synthetic tickets...");
+  await paint();
+  py.globals.get("make_demo")("/tmp/demo.csv", 5000);
+  currentPath = "/tmp/demo.csv";
+  currentLabel = "Demo data (synthetic, 5,000 tickets)";
+  $("download-demo").hidden = false;
+  await analyse();
 }
 
 function download(name, text, type) {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = Object.assign(document.createElement("a"), { href: url, download: name });
-  a.click();
-  URL.revokeObjectURL(url);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/* ---------- wiring ---------- */
+$("file").addEventListener("change", async (e) => { await useFile(e.target.files[0]); e.target.value = ""; });
+const zone = $("dropzone");
+["dragenter", "dragover"].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("dragging"); }));
+["dragleave", "drop"].forEach((ev) => zone.addEventListener(ev, () => zone.classList.remove("dragging")));
+zone.addEventListener("drop", async (e) => { e.preventDefault(); await useFile(e.dataTransfer.files[0]); });
+
+$("demo").addEventListener("click", useDemo);
+$("download-demo").addEventListener("click", () =>
+  download("itsm-demo-tickets.csv", py.FS.readFile("/tmp/demo.csv", { encoding: "utf8" }), "text/csv"));
+const saveJson = () => lastResult && download("itsm-insights-results.json", JSON.stringify(lastResult, null, 2), "application/json");
+$("download-json").addEventListener("click", saveJson);
+$("download-json-2").addEventListener("click", saveJson);
+
+$("copy-config").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("config").value); setStatus("done", "Config copied"); }
+  catch (e) { $("config").select(); }
+});
+$("reset-config").addEventListener("click", () => { $("config").value = DEFAULT_CONFIG; checkMapping(); });
+let mappingTimer = null;
+$("config").addEventListener("input", () => { clearTimeout(mappingTimer); mappingTimer = setTimeout(checkMapping, 400); });
+
+$("theme").addEventListener("click", () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("itsm-theme", root.dataset.theme); } catch (e) {}
+});
 
 async function boot() {
   $("config").value = DEFAULT_CONFIG;
+  animateIntro();
   try {
     const manifest = await (await fetch("manifest.json")).json();
+    $("version-chip").textContent = "v" + manifest.version;
     py = await loadPyodide();
     await py.loadPackage(["pandas", "pydantic", "pyyaml", "tzdata", "micropip"]);
-    const micropip = py.pyimport("micropip");
-    await micropip.install(new URL(manifest.wheel, location.href).href, { deps: false });
+    await py.pyimport("micropip").install(new URL(manifest.wheel, location.href).href, { deps: false });
     py.runPython(GLUE);
-    $("version").textContent = `· v${manifest.version}`;
     $("file").disabled = false;
     $("demo").disabled = false;
-    setStatus("Ready. Upload an export or try the demo data.");
+    setEngine("ready", `Python engine ready · itsm-insights ${manifest.version}`);
+    setStatus("idle", "Ready for a file");
+    if (new URLSearchParams(location.search).has("demo")) await useDemo();
   } catch (err) {
-    setStatus("Could not load the Python runtime: " + err, true);
+    setEngine("error", "Engine failed to load");
+    setStatus("error", "Unavailable");
+    showError("Could not load the Python runtime. Check your connection and reload.\n" + err);
   }
 }
-
-async function handleFile(file) {
-  if (!file || !py) return;
-  const ext = file.name.toLowerCase().endsWith(".json") ? ".json" : ".csv";
-  py.FS.writeFile("/tmp/upload" + ext, new Uint8Array(await file.arrayBuffer()));
-  await analyzePath("/tmp/upload" + ext, file.name);
-}
-
-$("file").addEventListener("change", async (e) => {
-  await handleFile(e.target.files[0]);
-  e.target.value = "";
-});
-
-// Drop a file anywhere on the upload card.
-const choose = $("choose");
-choose.addEventListener("dragover", (e) => { e.preventDefault(); choose.classList.add("dragging"); });
-choose.addEventListener("dragleave", (e) => {
-  if (!choose.contains(e.relatedTarget)) choose.classList.remove("dragging");
-});
-choose.addEventListener("drop", async (e) => {
-  e.preventDefault();
-  choose.classList.remove("dragging");
-  await handleFile(e.dataTransfer.files[0]);
-});
-
-$("demo").addEventListener("click", async () => {
-  $("config").value = DEFAULT_CONFIG;
-  setStatus("Generating 5,000 synthetic tickets...", false, true);
-  await new Promise((r) => setTimeout(r, 20));
-  py.globals.get("make_demo")("/tmp/demo.csv", 5000);
-  $("download-demo").hidden = false;
-  await analyzePath("/tmp/demo.csv", "Demo data (synthetic)");
-});
-
-$("download-demo").addEventListener("click", () => {
-  download("itsm-demo-tickets.csv", py.FS.readFile("/tmp/demo.csv", { encoding: "utf8" }), "text/csv");
-});
-
-$("download-json").addEventListener("click", () => {
-  if (lastResult) download("itsm-insights-results.json", JSON.stringify(lastResult, null, 2), "application/json");
-});
-
 boot();
 </script>
 </body>
