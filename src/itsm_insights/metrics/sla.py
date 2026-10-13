@@ -1,4 +1,10 @@
-"""SLA breach calculation (v0.1: 24x7 wall-clock calendar only).
+"""SLA breach calculation on working-time calendars, with clock pausing.
+
+Elapsed time is measured on the calendar named by each priority's policy
+(``24x7`` or a business-hours calendar). The resolution clock also stops
+while the ticket is in a pausing status (see ``timeline.pause_intervals``);
+the response clock never pauses, since waiting on a customer cannot happen
+before anyone has answered.
 
 Each ticket gets a response outcome and a resolution outcome:
 
@@ -19,10 +25,18 @@ their outcome is not known yet; counting them as met would flatter the numbers.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import pandas as pd
 
+from itsm_insights.calendars import (
+    TWENTY_FOUR_SEVEN,
+    Calendar,
+    Interval,
+    TwentyFourSeven,
+    active_seconds,
+)
 from itsm_insights.config import Config
 
 MET = "met"
@@ -31,15 +45,25 @@ PENDING = "pending"
 NO_POLICY = "no_policy"
 
 
-def evaluate(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp) -> pd.DataFrame:
-    """Return one row per ticket with elapsed times, targets and outcomes."""
+def evaluate(
+    tickets: pd.DataFrame,
+    config: Config,
+    as_of: pd.Timestamp,
+    pauses: Mapping[str, list[Interval]] | None = None,
+) -> pd.DataFrame:
+    """Return one row per ticket with elapsed times, targets and outcomes.
+
+    ``pauses`` maps ticket id to the intervals when its resolution clock is stopped.
+    """
     as_of = _as_utc(as_of)
+    pauses = pauses or {}
+    calendars = config.calendars_by_priority()
     priority = tickets["priority"]
     response_target = priority.map({k: pd.Timedelta(v.response) for k, v in config.sla.items()})
     resolve_target = priority.map({k: pd.Timedelta(v.resolve) for k, v in config.sla.items()})
 
     response_stop = tickets["first_response"].fillna(tickets["resolved"])
-    response = _outcome(tickets["created"], response_stop, response_target, as_of)
+    response = _outcome(tickets, response_stop, response_target, as_of, calendars, {})
     if "first_response" in tickets.attrs.get("missing_fields", ()):
         # No first-response data at all: falling back to the resolution time for every
         # ticket would report resolution speed as response speed. Leave it unmeasured.
@@ -47,12 +71,13 @@ def evaluate(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp) -> pd.D
             elapsed=pd.Series(pd.NaT, index=tickets.index, dtype="timedelta64[ns]"),
             status=pd.Series(pd.NA, index=tickets.index, dtype="object"),
         )
-    resolution = _outcome(tickets["created"], tickets["resolved"], resolve_target, as_of)
+    resolution = _outcome(tickets, tickets["resolved"], resolve_target, as_of, calendars, pauses)
 
     return pd.DataFrame(
         {
             "id": tickets["id"],
             "priority": priority,
+            "calendar": priority.map({p: c.name for p, c in calendars.items()}),
             "response_elapsed": response.elapsed,
             "response_target": response_target,
             "response_status": response.status,
@@ -69,10 +94,18 @@ class _Outcome:
     status: pd.Series
 
 
-def _outcome(start: pd.Series, stop: pd.Series, target: pd.Series, as_of: pd.Timestamp) -> _Outcome:
+def _outcome(
+    tickets: pd.DataFrame,
+    stop: pd.Series,
+    target: pd.Series,
+    as_of: pd.Timestamp,
+    calendars: Mapping[str, Calendar],
+    pauses: Mapping[str, list[Interval]],
+) -> _Outcome:
+    start = tickets["created"]
     running = stop.isna()
     end = stop.where(~running, as_of)
-    elapsed = end - start
+    elapsed = _elapsed(tickets, start, end, calendars, pauses)
 
     status = pd.Series(MET, index=start.index, dtype="object")
     status[elapsed > target] = BREACHED
@@ -82,6 +115,33 @@ def _outcome(start: pd.Series, stop: pd.Series, target: pd.Series, as_of: pd.Tim
     status[~running & (elapsed < pd.Timedelta(0))] = pd.NA
     elapsed = elapsed.where(elapsed >= pd.Timedelta(0))
     return _Outcome(elapsed=elapsed, status=status)
+
+
+def _elapsed(
+    tickets: pd.DataFrame,
+    start: pd.Series,
+    end: pd.Series,
+    calendars: Mapping[str, Calendar],
+    pauses: Mapping[str, list[Interval]],
+) -> pd.Series:
+    """Working time from start to end, minus paused working time.
+
+    24x7 tickets without pauses keep the vectorised wall-clock path; the rest are
+    measured one by one. Negative spans (bad data) are left negative for the caller.
+    """
+    wall = end - start
+    cal = tickets["priority"].map(lambda p: calendars.get(p, TWENTY_FOUR_SEVEN))
+    needs_calendar = ~cal.map(lambda c: isinstance(c, TwentyFourSeven)).astype(bool)
+    paused = tickets["id"].astype(str).isin(set(pauses))
+    slow = (needs_calendar | paused) & (wall > pd.Timedelta(0))
+    if not slow.any():
+        return wall
+    result = wall.copy()
+    ids = tickets["id"].astype(str)
+    for i in tickets.index[slow]:
+        seconds = active_seconds(start[i], end[i], cal[i], pauses.get(ids[i], ()))
+        result[i] = pd.Timedelta(seconds=seconds)
+    return result
 
 
 @dataclass(frozen=True)
