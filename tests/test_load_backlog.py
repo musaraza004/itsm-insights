@@ -63,11 +63,14 @@ def test_check_mapping_reports_found_and_missing(tmp_path):
         columns=ColumnMap(id="Key", created="Opened", priority="Priority", resolved="Done")
     )
     result = {row["field"]: row for row in check_mapping(path, cfg)}
-    assert result["id"] == {"field": "id", "column": "Key", "required": True, "found": True}
-    assert result["resolved"]["found"] is True
-    assert result["first_response"] == {
-        "field": "first_response",
-        "column": "first_response_at",
-        "required": False,
-        "found": False,
+    assert result["id"] == {
+        "field": "id",
+        "column": "Key",
+        "configured": "Key",
+        "required": True,
+        "found": True,
+        "auto": False,
     }
+    assert result["resolved"]["found"] is True
+    assert result["first_response"]["found"] is False
+    assert result["first_response"]["required"] is False

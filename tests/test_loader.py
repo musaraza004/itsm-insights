@@ -88,12 +88,12 @@ C,2026-07-01T09:00:00Z,P1
 
 
 def test_missing_required_column_lists_what_was_found(tmp_path):
-    path = write_csv(tmp_path, "id,opened,prio\n1,2026-01-01,P1")
+    path = write_csv(tmp_path, "foo,bar,baz\n1,2026-01-01,P1")
     with pytest.raises(LoaderError) as exc:
         load_tickets(path, Config())
     message = str(exc.value)
     assert "ticket_id" in message and "created_at" in message
-    assert "'opened'" in message  # shows the headers it did find
+    assert "'bar'" in message  # shows the headers it did find
 
 
 def test_bad_date_reports_row_and_value(tmp_path):

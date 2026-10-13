@@ -104,6 +104,16 @@ class Config(BaseModel):
     # Read now so v0.1 configs stay valid when v0.2/v0.3 start using them.
     pause_statuses: list[str] = Field(default_factory=list)
     repeat_window_days: int = Field(default=14, ge=1)
+    # Raw priority value -> SLA key, e.g. {"Urgent": "P1"}. Values like "High (P3)"
+    # are mapped automatically from the P-code they contain.
+    priority_aliases: dict[str, str] = Field(default_factory=dict)
+    # How to read numeric dates such as 05/08/2026. "auto" decides from the data.
+    date_order: Literal["auto", "dmy", "mdy"] = "auto"
+    # Statuses that mean the ticket is done (prefix match, case-insensitive), used to
+    # flag tickets whose status and resolved time disagree.
+    resolved_statuses: list[str] = Field(
+        default_factory=lambda: ["Resolved", "Closed", "Done", "Solved", "Completed"]
+    )
 
     @field_validator("timezone")
     @classmethod

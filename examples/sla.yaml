@@ -18,6 +18,15 @@ sla:
   P3: {response: 4h,  resolve: 3d, calendar: 24x7}
   P4: {response: 8h,  resolve: 5d, calendar: 24x7}
 
+# Raw priority names without a P-code, mapped to SLA keys. "High (P3)" maps to P3 by itself.
+# priority_aliases: {Urgent: P1, Normal: P3}
+
+# Numeric dates like 05/08/2026: auto (decide from the data), dmy or mdy.
+date_order: auto
+
+# Statuses that mean "done", used to flag tickets whose status and resolved time disagree.
+resolved_statuses: [Resolved, Closed, Done, Solved, Completed]
+
 # Used from v0.2 (clock pausing) and v0.3 (repeat incidents).
 # pause_statuses: ["Waiting for customer", "Pending vendor"]
 repeat_window_days: 14

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from itsm_insights.config import Config
+from itsm_insights.loaders import detect
 from itsm_insights.metrics import backlog, load, mttr, sla
 
 
@@ -23,6 +24,7 @@ class Analysis:
     by_priority: dict[str, dict]
     resolution: mttr.ResolutionStats
     resolution_by_priority: dict[str, mttr.ResolutionStats]
+    priority_labels: dict[str, str] = field(default_factory=dict)
     timezone: str = "UTC"
     load: list[list[int]] = field(default_factory=list)
     backlog: dict[str, int] = field(default_factory=dict)
@@ -41,6 +43,7 @@ class Analysis:
                 "resolve": self.resolve.as_dict(),
                 "by_priority": {
                     p: {
+                        "label": self.priority_labels.get(p, ""),
                         "tickets": row["tickets"],
                         "response": row["response"].as_dict(),
                         "resolve": row["resolve"].as_dict(),
@@ -90,6 +93,7 @@ def analyze(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp | None = 
         response=sla.summarise(evaluated["response_status"]),
         resolve=sla.summarise(evaluated["resolve_status"]),
         by_priority=sla.breach_by_priority(evaluated, config),
+        priority_labels=_priority_labels(tickets),
         resolution=mttr.mttr(tickets),
         resolution_by_priority=mttr.mttr_by(tickets, "priority"),
         timezone=config.timezone,
@@ -99,17 +103,56 @@ def analyze(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp | None = 
     )
 
 
+def _priority_labels(tickets: pd.DataFrame) -> dict[str, str]:
+    """Most common original wording per priority, minus the code: P3 -> "High"."""
+    if "priority_raw" not in tickets:
+        return {}
+    pairs = tickets[["priority", "priority_raw"]].dropna()
+    return {
+        str(p): detect.priority_label(group.mode().iloc[0])
+        for p, group in pairs.groupby("priority")["priority_raw"]
+    }
+
+
 def _data_warnings(
     tickets: pd.DataFrame, evaluated: pd.DataFrame, config: Config, as_of: pd.Timestamp
 ) -> list[str]:
     warnings: list[str] = []
 
+    warnings.extend(tickets.attrs.get("notes", []))
+
     unknown = evaluated.loc[evaluated["resolve_status"] == sla.NO_POLICY, "priority"]
     if not unknown.empty:
-        values = ", ".join(sorted({str(v) for v in unknown.fillna("(blank)").unique()})[:5])
+        counts = unknown.fillna("(blank)").value_counts()
+        values = ", ".join(f"{k} ({n})" for k, n in counts.head(6).items())
+        example = str(counts.index[0])
         warnings.append(
-            f"{len(unknown)} ticket(s) have a priority with no SLA in the config "
-            f"({values}); they are excluded from breach rates."
+            f"{len(unknown)} ticket(s) have a priority with no SLA in the config: {values}. "
+            f"They are excluded from breach rates; add them under 'sla:', e.g. "
+            f"{example}: {{response: 1d, resolve: 10d}}, or map them with 'priority_aliases:'."
+        )
+
+    if "first_response" in tickets.attrs.get("missing_fields", ()):
+        warnings.append(
+            "The export has no first-response times, so the response SLA cannot be measured. "
+            "Map a first-response timestamp column under 'columns:' to enable it."
+        )
+
+    done_prefixes = tuple(s.casefold() for s in config.resolved_statuses)
+    status = tickets["status"].fillna("").str.casefold()
+    looks_done = status.map(lambda v: bool(v) and v.startswith(done_prefixes))
+    has_status = tickets["status"].notna().any()
+    done_no_time = int((looks_done & tickets["resolved"].isna()).sum())
+    time_not_done = int((~looks_done & tickets["resolved"].notna()).sum()) if has_status else 0
+    if done_no_time:
+        warnings.append(
+            f"{done_no_time} ticket(s) have a resolved/closed status but no resolved time; "
+            "they are counted as open. Check that the 'resolved' column is the resolution date."
+        )
+    if time_not_done:
+        warnings.append(
+            f"{time_not_done} ticket(s) have a resolved time but an open status "
+            "(probably reopened); they are counted as resolved at that time."
         )
 
     backwards_response = (tickets["first_response"] < tickets["created"]).sum()

@@ -10,7 +10,8 @@ Each ticket gets a response outcome and a resolution outcome:
 
 The response clock stops at the first agent response. A ticket resolved without
 a recorded response counts as responded to at resolution, since the requester
-did get an answer.
+did get an answer. If the export has no first-response times at all, the
+response SLA is left unmeasured rather than approximated.
 
 Breach rate = breached / (met + breached). Pending tickets are excluded because
 their outcome is not known yet; counting them as met would flatter the numbers.
@@ -39,6 +40,13 @@ def evaluate(tickets: pd.DataFrame, config: Config, as_of: pd.Timestamp) -> pd.D
 
     response_stop = tickets["first_response"].fillna(tickets["resolved"])
     response = _outcome(tickets["created"], response_stop, response_target, as_of)
+    if "first_response" in tickets.attrs.get("missing_fields", ()):
+        # No first-response data at all: falling back to the resolution time for every
+        # ticket would report resolution speed as response speed. Leave it unmeasured.
+        response = _Outcome(
+            elapsed=pd.Series(pd.NaT, index=tickets.index, dtype="timedelta64[ns]"),
+            status=pd.Series(pd.NA, index=tickets.index, dtype="object"),
+        )
     resolution = _outcome(tickets["created"], tickets["resolved"], resolve_target, as_of)
 
     return pd.DataFrame(
