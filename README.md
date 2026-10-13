@@ -6,6 +6,9 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
+**Try it in your browser: [musaraza004.github.io/itsm-insights](https://musaraza004.github.io/itsm-insights/)**
+(no install; your data never leaves your device)
+
 > **Status: v0.1.** Generic CSV/JSON loader, SLA breach rates on a 24x7 clock, and time to resolve
 > (mean, median, P90). Business-hours calendars and clock pausing are next; see the [roadmap](#roadmap).
 

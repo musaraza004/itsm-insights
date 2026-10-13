@@ -12,3 +12,4 @@ htmlcov/
 # Generated demo output; keep committed samples under data/
 /demo*.csv
 /report*.html
+_site/

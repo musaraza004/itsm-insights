@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ITSM Insights</title>
+<meta name="description" content="SLA breach rates and time to resolve from a ticket CSV export. Runs entirely in your browser.">
+<style>
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --text: #1b1b1a; --muted: #6b6b66; --line: #e3e2dd;
+    --accent: #2f5d8a; --accent-text: #ffffff; --good: #2e7d4f; --warn: #a86a00; --bad: #b3261e;
+    --bar: #d7e3ef; --code: #f0efea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151514; --surface: #1e1e1c; --text: #ecebe6; --muted: #a2a19a; --line: #34332f;
+      --accent: #7fb0e0; --accent-text: #0e1a26; --good: #6fcf97; --warn: #e3b25a; --bad: #f2867d;
+      --bar: #2b3a4a; --code: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151514; --surface: #1e1e1c; --text: #ecebe6; --muted: #a2a19a; --line: #34332f;
+    --accent: #7fb0e0; --accent-text: #0e1a26; --good: #6fcf97; --warn: #e3b25a; --bad: #f2867d;
+    --bar: #2b3a4a; --code: #262624;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  header h1 { font-size: 1.9rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); }
+  .privacy { margin-top: 12px; font-size: 0.9rem; color: var(--muted); }
+  .privacy strong { color: var(--text); }
+  section.card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px; margin-top: 20px;
+  }
+  h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  button, .file-label {
+    font: inherit; border-radius: 8px; padding: 9px 16px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .file-label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hint { font-size: 0.875rem; color: var(--muted); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; margin-top: 14px; }
+  textarea {
+    width: 100%; min-height: 260px; margin-top: 8px; padding: 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--code); color: var(--text);
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  #status { margin-top: 12px; font-size: 0.9rem; color: var(--muted); min-height: 1.5em; }
+  #status.error { color: var(--bad); white-space: pre-wrap; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .kpi { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .kpi .label { font-size: 0.8rem; color: var(--muted); }
+  .kpi .value { font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .sub { font-size: 0.8rem; color: var(--muted); }
+  .meta { color: var(--muted); font-size: 0.875rem; margin: 0 0 14px; }
+  .table-wrap { overflow-x: auto; margin-top: 16px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+  tr.total td { font-weight: 600; }
+  .rate { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .bar { width: 56px; height: 6px; background: var(--bar); border-radius: 3px; overflow: hidden; }
+  .bar span { display: block; height: 100%; }
+  .good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .bar .good { background: var(--good); } .bar .warn { background: var(--warn); } .bar .bad { background: var(--bad); }
+  ul.warnings { margin: 14px 0 0; padding-left: 20px; color: var(--warn); font-size: 0.9rem; }
+  .foot { margin-top: 12px; font-size: 0.8rem; color: var(--muted); }
+  footer { margin-top: 32px; font-size: 0.875rem; color: var(--muted); }
+  a { color: var(--accent); }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>ITSM Insights</h1>
+    <p>SLA breach rates and time to resolve from a ticket export, in one click.</p>
+    <p class="privacy"><strong>Your data stays on your device.</strong> The analysis runs in your browser
+      (Python via WebAssembly). Nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="card">
+    <h2>1. Choose tickets</h2>
+    <div class="row">
+      <label class="file-label">
+        <input id="file" type="file" accept=".csv,.json" disabled>
+        Upload CSV or JSON
+      </label>
+      <span class="hint">or</span>
+      <button id="demo" disabled>Try with 5,000 demo tickets</button>
+      <button id="download-demo" hidden>Download demo CSV</button>
+    </div>
+    <p class="hint">Needs columns for ticket id, created time and priority. Map your export's column names
+      in the config below. The default config matches the demo data.</p>
+    <details>
+      <summary>SLA policy and column mapping (YAML)</summary>
+      <textarea id="config" spellcheck="false" aria-label="Config YAML"></textarea>
+    </details>
+    <div id="status" role="status" aria-live="polite">Loading the Python runtime (about 15 MB, first visit only)...</div>
+  </section>
+
+  <section class="card" id="results" hidden>
+    <h2>2. Results</h2>
+    <p class="meta" id="meta"></p>
+    <div class="kpis" id="kpis"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Priority</th><th scope="col">Tickets</th>
+            <th scope="col">Response breach</th><th scope="col">Resolve breach</th>
+            <th scope="col">Open, in SLA</th><th scope="col">Mean TTR</th>
+            <th scope="col">Median TTR</th><th scope="col">P90 TTR</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <ul class="warnings" id="warnings"></ul>
+    <p class="foot">Breach rate = breached / (met + breached). Open tickets still inside their target are
+      excluded. TTR = created to resolved, wall-clock (24x7).
+      <a href="https://github.com/musaraza004/itsm-insights/blob/main/docs/METHODOLOGY.md">Methodology</a></p>
+    <div class="row"><button id="download-json">Download results (JSON)</button></div>
+  </section>
+
+  <footer>
+    Open source (MIT). Command-line version and source code:
+    <a href="https://github.com/musaraza004/itsm-insights">github.com/musaraza004/itsm-insights</a>
+    <span id="version"></span>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+<script>
+const DEFAULT_CONFIG = `# Matches the columns written by the demo generator.
+timezone: Europe/London
+
+columns:
+  id: ticket_id
+  created: created_at
+  priority: priority
+  status: status
+  category: category
+  assignee_group: assignee_group
+  first_response: first_response_at
+  resolved: resolved_at
+
+sla:
+  P1: {response: 15m, resolve: 4h, calendar: 24x7}
+  P2: {response: 1h,  resolve: 8h, calendar: 24x7}
+  P3: {response: 4h,  resolve: 3d, calendar: 24x7}
+  P4: {response: 8h,  resolve: 5d, calendar: 24x7}
+`;
+
+const GLUE = `
+import json, traceback
+import pandas as pd
+from itsm_insights.analysis import analyze
+from itsm_insights.config import ConfigError, load_config
+from itsm_insights.generator import generate, to_csv
+from itsm_insights.loaders import LoaderError, load_tickets
+
+def run(ticket_path, config_text):
+    with open("/tmp/sla.yaml", "w", encoding="utf-8") as f:
+        f.write(config_text)
+    try:
+        cfg = load_config("/tmp/sla.yaml")
+        tickets = load_tickets(ticket_path, cfg)
+        return json.dumps(analyze(tickets, cfg).as_dict())
+    except (ConfigError, LoaderError, ValueError) as exc:
+        message = str(exc).replace("/tmp/sla.yaml", "the config")
+        return json.dumps({"error": message.replace("upload.csv", "your file")})
+    except Exception:
+        return json.dumps({"error": "Unexpected error:\\n" + traceback.format_exc(limit=3)})
+
+def make_demo(path, n):
+    end = pd.Timestamp.now(tz="Europe/London").floor("h")
+    to_csv(generate(n, end=end, seed=42), path)
+`;
+
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status");
+let py = null, lastResult = null, lastSource = "";
+
+function setStatus(text, isError = false) {
+  statusEl.textContent = text;
+  statusEl.classList.toggle("error", isError);
+}
+
+function fmtDuration(seconds) {
+  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "-";
+  let s = Math.round(Math.abs(seconds));
+  const d = Math.floor(s / 86400); s -= d * 86400;
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  if (m) return `${m}m`;
+  return `${s}s`;
+}
+
+function tone(rate) { return rate < 0.05 ? "good" : rate < 0.15 ? "warn" : "bad"; }
+
+function rateCell(summary) {
+  if (summary.breach_rate === null) return '<span class="hint">-</span>';
+  const r = summary.breach_rate, t = tone(r);
+  const width = Math.min(100, Math.round(r * 200));  // 50% breach fills the bar
+  return `<span class="rate" title="${summary.breached} of ${summary.met + summary.breached} breached">` +
+    `<span class="${t}">${(r * 100).toFixed(1)}%</span>` +
+    `<span class="bar"><span class="${t}" style="width:${width}%"></span></span></span>`;
+}
+
+function kpi(label, value, sub, cls = "") {
+  return `<div class="kpi"><div class="label">${label}</div>` +
+    `<div class="value ${cls}">${value}</div><div class="sub">${sub}</div></div>`;
+}
+
+function esc(text) {
+  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function render(r) {
+  const t = r.tickets, resp = r.sla.response, res = r.sla.resolve, ttr = r.time_to_resolve.overall;
+  $("meta").textContent = `${lastSource}: tickets created ${r.period.start.slice(0, 10)} to ` +
+    `${r.period.end.slice(0, 10)}; open tickets measured as of ${r.as_of.slice(0, 16).replace("T", " ")} UTC.`;
+  const pct = (s) => s.breach_rate === null ? "-" : `${(s.breach_rate * 100).toFixed(1)}%`;
+  $("kpis").innerHTML =
+    kpi("Tickets", t.total.toLocaleString(), `${t.resolved.toLocaleString()} resolved, ${t.open.toLocaleString()} open`) +
+    kpi("Response SLA breached", pct(resp), `${resp.breached.toLocaleString()} of ${(resp.met + resp.breached).toLocaleString()}`,
+        resp.breach_rate === null ? "" : tone(resp.breach_rate)) +
+    kpi("Resolution SLA breached", pct(res), `${res.breached.toLocaleString()} of ${(res.met + res.breached).toLocaleString()}`,
+        res.breach_rate === null ? "" : tone(res.breach_rate)) +
+    kpi("Median time to resolve", fmtDuration(ttr.median_seconds), `P90 ${fmtDuration(ttr.p90_seconds)}`);
+
+  const byTtr = r.time_to_resolve.by_priority;
+  const rows = Object.entries(r.sla.by_priority).map(([p, row]) => {
+    const s = byTtr[p] || {};
+    return `<tr><td>${esc(p)}</td><td>${row.tickets.toLocaleString()}</td>` +
+      `<td>${rateCell(row.response)}</td><td>${rateCell(row.resolve)}</td>` +
+      `<td>${row.resolve.pending.toLocaleString()}</td><td>${fmtDuration(s.mean_seconds)}</td>` +
+      `<td>${fmtDuration(s.median_seconds)}</td><td>${fmtDuration(s.p90_seconds)}</td></tr>`;
+  });
+  rows.push(`<tr class="total"><td>All</td><td>${t.total.toLocaleString()}</td><td>${rateCell(resp)}</td>` +
+    `<td>${rateCell(res)}</td><td>${res.pending.toLocaleString()}</td><td>${fmtDuration(ttr.mean_seconds)}</td>` +
+    `<td>${fmtDuration(ttr.median_seconds)}</td><td>${fmtDuration(ttr.p90_seconds)}</td></tr>`);
+  $("rows").innerHTML = rows.join("");
+  $("warnings").innerHTML = r.warnings.map((w) => `<li>${esc(w)}</li>`).join("");
+  $("results").hidden = false;
+}
+
+async function analyzePath(path, label) {
+  lastSource = label;
+  setStatus("Analysing...");
+  await new Promise((r) => setTimeout(r, 20));  // let the status paint
+  const out = JSON.parse(py.globals.get("run")(path, $("config").value));
+  if (out.error) {
+    $("results").hidden = true;
+    setStatus(out.error, true);
+    return;
+  }
+  lastResult = out;
+  render(out);
+  setStatus(`Analysed ${out.tickets.total.toLocaleString()} tickets.`);
+  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function boot() {
+  $("config").value = DEFAULT_CONFIG;
+  try {
+    const manifest = await (await fetch("manifest.json")).json();
+    py = await loadPyodide();
+    await py.loadPackage(["pandas", "pydantic", "pyyaml", "tzdata", "micropip"]);
+    const micropip = py.pyimport("micropip");
+    await micropip.install(new URL(manifest.wheel, location.href).href, { deps: false });
+    py.runPython(GLUE);
+    $("version").textContent = `· v${manifest.version}`;
+    $("file").disabled = false;
+    $("demo").disabled = false;
+    setStatus("Ready. Upload an export or try the demo data.");
+  } catch (err) {
+    setStatus("Could not load the Python runtime: " + err, true);
+  }
+}
+
+$("file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const ext = file.name.toLowerCase().endsWith(".json") ? ".json" : ".csv";
+  py.FS.writeFile("/tmp/upload" + ext, new Uint8Array(await file.arrayBuffer()));
+  await analyzePath("/tmp/upload" + ext, file.name);
+  e.target.value = "";
+});
+
+$("demo").addEventListener("click", async () => {
+  $("config").value = DEFAULT_CONFIG;
+  setStatus("Generating 5,000 synthetic tickets...");
+  await new Promise((r) => setTimeout(r, 20));
+  py.globals.get("make_demo")("/tmp/demo.csv", 5000);
+  $("download-demo").hidden = false;
+  await analyzePath("/tmp/demo.csv", "Demo data (synthetic)");
+});
+
+$("download-demo").addEventListener("click", () => {
+  download("itsm-demo-tickets.csv", py.FS.readFile("/tmp/demo.csv", { encoding: "utf8" }), "text/csv");
+});
+
+$("download-json").addEventListener("click", () => {
+  if (lastResult) download("itsm-insights-results.json", JSON.stringify(lastResult, null, 2), "application/json");
+});
+
+boot();
+</script>
+</body>
+</html>
